@@ -37,7 +37,7 @@
 
 > **前置条件：** 你需要一个 [GitHub](https://github.com) 账号和 [Vercel](https://vercel.com) 账号。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/LiChen0459/chenBlog&env=ADMIN_TOKEN,CHENWEBSITE_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/LiChen0459/chenBlog&env=ADMIN_TOKEN,CHENWEBSITE_URL,VITE_BLOG_URL)
 
 点击按钮后按提示操作：
 
@@ -47,7 +47,8 @@
 | 变量 | 说明 | 必填 |
 |---|---|---|
 | `ADMIN_TOKEN` | 后台管理密码，自己生成一个随机字符串 | ✅ |
-| `CHENWEBSITE_URL` | 你的主站地址（用于跨站链接） | ✅ |
+| `VITE_BLOG_URL` | 你的博客完整 URL（如 `https://blog.example.com`） | ✅ |
+| `CHENWEBSITE_URL` | 你的主站地址（用于跨站链接） | ❌ |
 
 3. **添加数据库和存储**（在 Vercel Dashboard）：
    - **Neon Postgres** → 自动注入 `DATABASE_URL`
@@ -105,6 +106,7 @@ cp .env.example .env
 ```env
 ADMIN_TOKEN=your-secret-token-here
 CHENWEBSITE_URL=https://your-website.vercel.app
+VITE_BLOG_URL=https://your-blog.vercel.app
 ```
 
 本地开发默认使用 JSON 文件存储数据，无需配置数据库。

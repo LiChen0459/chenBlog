@@ -39,7 +39,8 @@ Vercel Dashboard → 你的项目 → **Settings** → **Environment Variables**
 | Key | Value | 哪里来 |
 |---|---|---|
 | `ADMIN_TOKEN` | 自己生成一个长随机串 | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
-| `CHENWEBSITE_URL` | `https://你的ChenWebsite地址.vercel.app` | 你自己 |
+| `VITE_BLOG_URL` | `https://你的博客域名.vercel.app` | 你的博客地址 |
+| `CHENWEBSITE_URL` | `https://你的主站地址.vercel.app` | 你的主站 |
 | `DATABASE_URL` | (自动注入) | 创建完 Neon 就有了 |
 | `BLOB_READ_WRITE_TOKEN` | (自动注入) | 创建完 Blob 就有了 |
 
