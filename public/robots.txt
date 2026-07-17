@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /desk
-Sitemap: https://blog.chen2009.top/sitemap.xml
+Sitemap: https://your-blog.vercel.app/sitemap.xml

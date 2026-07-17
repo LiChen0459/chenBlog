@@ -25,7 +25,7 @@ export function createApp() {
       ok: true,
       data: {
         name: "Chen's Portfolio",
-        url: process.env.CHENWEBSITE_URL || 'https://chenwebsite.vercel.app',
+        url: process.env.CHENWEBSITE_URL || 'https://your-website.vercel.app',
         label: 'View Portfolio',
         description: 'Full-stack developer portfolio',
       },

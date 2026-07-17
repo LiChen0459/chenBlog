@@ -5,7 +5,7 @@
       <!-- Avatar + Brand -->
       <router-link to="/" class="sidebar-brand">
         <div class="brand-avatar">
-          <img src="https://q.qlogo.cn/headimg_dl?dst_uin=197675469&spec=640&img_type=jpg" alt="" />
+          <img src="/avatar.svg" alt="" />
         </div>
         <div class="brand-text">
           <span class="brand-name">Chen</span>
