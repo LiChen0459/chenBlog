@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS posts (
   date       DATE NOT NULL DEFAULT CURRENT_DATE,
   summary    TEXT DEFAULT '',
   content    TEXT DEFAULT '',
+  tags       TEXT DEFAULT '[]',
+  pinned     BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -24,13 +26,48 @@ CREATE TABLE IF NOT EXISTS moments (
   time       TEXT NOT NULL,
   content    TEXT NOT NULL,
   image      TEXT,
+  images     TEXT DEFAULT '[]',
+  tags       TEXT DEFAULT '[]',
+  hidden     BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
+> **已有数据库升级？** 不用重建表，直接跑 `npm run db:migrate`
+> （`server/db/migrate.js` 里全是幂等语句），或手动执行：
+>
+> ```sql
+> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS tags   TEXT    DEFAULT '[]';
+> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
+> ALTER TABLE moments ADD COLUMN IF NOT EXISTS tags   TEXT    DEFAULT '[]';
+> ALTER TABLE moments ADD COLUMN IF NOT EXISTS images TEXT    DEFAULT '[]';
+> ALTER TABLE moments ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE;
+>
+> CREATE TABLE IF NOT EXISTS settings (
+>   key        TEXT PRIMARY KEY,
+>   value      TEXT,
+>   updated_at TIMESTAMPTZ DEFAULT NOW()
+> );
+>
+> -- 索引：文章/动态列表的排序键，数据量大时避免全表扫描 + 排序
+> CREATE INDEX IF NOT EXISTS posts_list_idx    ON posts   (pinned DESC, date DESC);
+> CREATE INDEX IF NOT EXISTS moments_list_idx  ON moments (date DESC, time DESC);
+> CREATE INDEX IF NOT EXISTS moments_hidden_idx ON moments (hidden) WHERE hidden IS TRUE;
+> ```
+
+> **隐藏动态**：在后台「动态管理」点某条的「隐藏」，或编辑时勾选「隐藏这条动态」。
+> 隐藏后前台 `/moments` 不再显示，只会在「有 N 条隐藏动态 · 输入密码查看」处解锁。
+> 访问密码在后台「设置」页自定义（scrypt 加密存储）；未设置时回退为 `ADMIN_TOKEN`。
+
 ### 2. 图片存储 — Vercel Blob
 
-Vercel Dashboard → **Storage** → **Create Database** → 选 **Blob**
+Vercel Dashboard → **Storage** → **Create Store** → 选 **Blob**
 
 ### 3. 环境变量
 

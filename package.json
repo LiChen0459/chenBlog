@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "node --watch --env-file=.env server/index.js",
+    "dev:server": "node --watch --env-file-if-exists=.env server/index.js",
+    "dev:server:local": "node --watch --env-file-if-exists=.env server/index.js --local",
     "dev:all": "concurrently -n ui,api -c cyan,yellow \"npm run dev\" \"npm run dev:server\"",
-    "start": "node --env-file=.env server/index.js",
+    "dev:all:local": "concurrently -n ui,api -c cyan,yellow \"npm run dev\" \"npm run dev:server:local\"",
+    "start": "node --env-file-if-exists=.env server/index.js",
     "build": "vite build",
     "preview": "vite preview",
-    "db:migrate": "node --env-file=.env server/db/migrate.js",
-    "db:seed": "node --env-file=.env server/db/seed.js"
+    "test": "node server/tests/payload.test.mjs && node server/tests/settings-unlock.test.mjs && node server/tests/vercel-entry.test.mjs && node server/tests/bulk.test.mjs",
+    "db:migrate": "node --env-file-if-exists=.env server/db/migrate.js",
+    "db:seed": "node --env-file-if-exists=.env server/db/seed.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

@@ -15,19 +15,25 @@
 
       <nav class="sidebar-nav">
         <router-link to="/">
+          <Icon name="home" :size="16" />
           <span class="nav-label">首页</span>
         </router-link>
         <router-link to="/blog">
+          <Icon name="file-text" :size="16" />
           <span class="nav-label">文章</span>
         </router-link>
         <router-link to="/moments">
+          <Icon name="camera" :size="16" />
           <span class="nav-label">动态</span>
         </router-link>
       </nav>
 
-      <button class="sidebar-theme-btn" @click="toggleTheme">
-        <svg v-if="theme === 'light'" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <button
+        class="sidebar-theme-btn"
+        :title="theme === 'light' ? '切换到深色' : '切换到浅色'"
+        @click="toggleTheme"
+      >
+        <Icon :name="theme === 'light' ? 'moon' : 'sun'" :size="16" />
         <span class="theme-label">{{ theme === 'light' ? '深色' : '浅色' }}</span>
       </button>
 
@@ -55,19 +61,23 @@
 <script setup>
 import { ref, computed, onMounted, provide } from 'vue'
 import { useRoute } from 'vue-router'
+import Icon from './components/Icon.vue'
 
 /* ── Theme ── */
 const stored = localStorage.getItem('blog-theme') || 'dark'
 const theme = ref(stored)
+
 function applyTheme(t) {
   theme.value = t
   localStorage.setItem('blog-theme', t)
   document.documentElement.setAttribute('data-theme', t)
   window.dispatchEvent(new CustomEvent('theme-change', { detail: t }))
 }
+
 function toggleTheme() {
   applyTheme(theme.value === 'light' ? 'dark' : 'light')
 }
+
 provide('theme', theme)
 provide('toggleTheme', toggleTheme)
 

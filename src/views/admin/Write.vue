@@ -2,13 +2,24 @@
   <div class="write-shell">
     <!-- Toolbar -->
     <header class="write-toolbar">
-      <router-link to="/desk" class="back-btn">← 返回控制台</router-link>
+      <router-link to="/desk" class="back-btn">
+        <Icon name="arrow-left" :size="15" />
+        <span class="back-label">返回控制台</span>
+      </router-link>
       <span class="write-mode">{{ editingId ? '编辑中' : '新建文章' }}</span>
       <div class="toolbar-right">
-        <button class="mui-btn outlined" @click="showMeta = !showMeta">设置</button>
-        <button class="mui-btn raised primary" @click="publish">发布</button>
+        <button class="mui-btn outlined" @click="showMeta = !showMeta">
+          <Icon name="sliders" :size="14" />
+          <span class="btn-label">设置</span>
+        </button>
+        <button class="mui-btn raised primary" :disabled="publishing" @click="publish">
+          <Icon v-if="publishing" name="loader" :size="14" />
+          <span>{{ publishing ? '发布中' : '发布' }}</span>
+        </button>
       </div>
     </header>
+
+    <p v-if="errMsg" class="write-error">{{ errMsg }}</p>
 
     <div class="write-body">
       <!-- Editor -->
@@ -17,7 +28,7 @@
           v-model="title"
           class="write-title"
           placeholder="文章标题..."
-          autofocus
+          @input="errMsg = ''"
         />
         <div ref="editorWrap" class="editor-stage"></div>
       </div>
@@ -38,23 +49,34 @@
             v-model="tagInput" class="mui-input" placeholder="添加标签..."
             @keyup.enter="addTag" @keyup.","="addTag"
           />
-          <button class="mui-btn text" @click="addTag">+</button>
+          <button class="mui-btn text" aria-label="添加标签" @click="addTag">
+            <Icon name="plus" :size="15" />
+          </button>
         </div>
         <div class="tag-pills" v-if="tags.length">
-          <span class="tag-pill" v-for="(t, i) in tags" :key="t" @click="tags.splice(i,1)">{{ t }} ✕</span>
+          <button type="button" class="tag-pill" v-for="(t, i) in tags" :key="t" @click="tags.splice(i,1)">
+            {{ t }}
+            <Icon name="x" :size="10" />
+          </button>
         </div>
 
         <label>封面图片</label>
-        <div class="upload-area" @click="$refs.coverInput.click()" @dragover.prevent @drop.prevent="onCoverDrop">
-          <span v-if="coverUploading">⏳</span>
-          <span v-else-if="coverImage">✅ 已上传</span>
-          <span v-else>📁 拖拽或点击上传</span>
+        <div class="upload-area" :class="{ busy: coverUploading }" @click="pickCover" @dragover.prevent @drop.prevent="onCoverDrop">
+          <Icon v-if="coverUploading" name="loader" :size="16" />
+          <Icon v-else-if="coverImage" name="check-circle" :size="16" />
+          <Icon v-else name="upload" :size="16" />
+          <span v-if="coverUploading">上传中…</span>
+          <span v-else-if="coverImage">已上传 · 点击更换</span>
+          <span v-else>点击或拖拽上传</span>
         </div>
         <input ref="coverInput" type="file" accept="image/*" @change="onCoverFile" hidden />
-        <img v-if="coverImage" :src="coverImage" class="preview-pic" />
+        <img v-if="coverImage" :src="coverImage" class="preview-pic" alt="" />
 
         <hr />
-        <button class="mui-btn text danger" v-if="editingId" @click="deletePost">删除这篇文章</button>
+        <button class="mui-btn text danger" v-if="editingId" @click="deletePost">
+          <Icon name="trash" :size="13" />
+          删除这篇文章
+        </button>
       </aside>
     </div>
   </div>
@@ -63,17 +85,17 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import Icon from '../../components/Icon.vue'
 import { admin } from '../../api/admin.js'
 import Editor from '@toast-ui/editor'
 import '@toast-ui/editor/dist/toastui-editor.css'
 import '@toast-ui/editor/dist/theme/toastui-editor-dark.css'
 
-/* Theme — listen for custom event from App.vue */
+/* ── Theme ── */
 function getTheme() { return document.documentElement.getAttribute('data-theme') || 'dark' }
 const themeRef = ref(getTheme())
 function onTheme(e) { themeRef.value = e.detail }
 window.addEventListener('theme-change', onTheme)
-onBeforeUnmount(() => window.removeEventListener('theme-change', onTheme))
 
 const route = useRoute()
 const router = useRouter()
@@ -87,9 +109,20 @@ const tagInput = ref('')
 const coverImage = ref('')
 const coverUploading = ref(false)
 const showMeta = ref(true)
+const publishing = ref(false)
+const errMsg = ref('')
 
 const editorWrap = ref(null)
+const coverInput = ref(null)
 let editor = null
+
+function editorHeight() {
+  return window.matchMedia('(max-width: 768px)').matches ? '440px' : 'calc(100vh - 150px)'
+}
+
+function pickCover() {
+  if (!coverUploading.value) coverInput.value?.click()
+}
 
 function addTag() {
   const t = tagInput.value.replace(/,/g, '').trim()
@@ -97,121 +130,133 @@ function addTag() {
   tagInput.value = ''
 }
 
-/* Cover upload */
+/* ── Cover upload ── */
 async function uploadCover(file) {
   if (!file) return
   coverUploading.value = true
-  try { coverImage.value = await admin.uploadImage(file) } catch {}
-  finally { coverUploading.value = false }
+  try {
+    coverImage.value = await admin.uploadImage(file)
+  } catch (e) {
+    errMsg.value = e.message
+  } finally {
+    coverUploading.value = false
+  }
 }
-function onCoverFile(e) { uploadCover(e.target.files?.[0]) }
+function onCoverFile(e) {
+  uploadCover(e.target.files?.[0])
+  e.target.value = ''
+}
 function onCoverDrop(e) { e.preventDefault(); uploadCover(e.dataTransfer?.files?.[0]) }
 
-/* Editor */
-function initEditor(val = '') {
-  if (editor) editor.destroy()
+/* ── Editor ── */
+const TOOLBAR = [
+  ['heading', 'bold', 'italic', 'strike'],
+  ['hr', 'quote'],
+  ['ul', 'ol', 'task'],
+  ['table', 'image', 'link'],
+  ['code', 'codeblock'],
+  ['scrollSync'],
+]
+
+function buildEditor(value) {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
-  editor = new Editor({
+  return new Editor({
     el: editorWrap.value,
-    height: 'calc(100vh - 120px)',
-    initialValue: val,
+    height: editorHeight(),
+    initialValue: value || '',
     initialEditType: 'markdown',
     previewStyle: 'vertical',
     theme: isDark ? 'dark' : 'default',
     placeholder: '开始写 Markdown...',
-    toolbarItems: [
-      ['heading', 'bold', 'italic', 'strike'],
-      ['hr', 'quote'],
-      ['ul', 'ol', 'task'],
-      ['table', 'image', 'link'],
-      ['code', 'codeblock'],
-      ['scrollSync'],
-    ],
+    toolbarItems: TOOLBAR,
   })
 }
 
-/* Sync editor theme */
+function initEditor(val = '') {
+  if (editor) { editor.destroy(); editor = null }
+  editor = buildEditor(val)
+}
+
 watch(themeRef, () => {
   if (!editor) return
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
   const md = editor.getMarkdown()
   editor.destroy()
-  editor = new Editor({
-    el: editorWrap.value, height: 'calc(100vh - 120px)', initialValue: md,
-    initialEditType: 'markdown', previewStyle: 'vertical',
-    theme: isDark ? 'dark' : 'default',
-    toolbarItems: [
-      ['heading', 'bold', 'italic', 'strike'], ['hr', 'quote'],
-      ['ul', 'ol', 'task'], ['table', 'image', 'link'],
-      ['code', 'codeblock'], ['scrollSync'],
-    ],
-  })
+  editor = buildEditor(md)
 })
 
-/* Load existing post */
+/* ── Load existing post ── */
 async function loadPost(id) {
   try {
     const p = await admin.getPost(id)
-    if (p) {
-      title.value = p.title
-      date.value = p.date
-      summary.value = p.summary
-      tags.value = p.tags || []
-      initEditor(p.content || '')
-    }
-  } catch {}
+    if (!p) return
+    title.value = p.title || ''
+    date.value = p.date || date.value
+    summary.value = p.summary || ''
+    tags.value = p.tags || []
+    initEditor(p.content || '')
+  } catch (e) {
+    errMsg.value = e.message
+  }
 }
 
-/* Publish */
+/* ── Publish / delete ── */
 async function publish() {
-  const content = editor?.getMarkdown() || ''
-  if (!title.value.trim()) return alert('Title is required')
-  const data = {
-    title: title.value,
-    date: date.value,
-    summary: summary.value,
-    content,
-    tags: tags.value,
+  errMsg.value = ''
+  if (!title.value.trim()) {
+    errMsg.value = '请先填写文章标题'
+    return
   }
+  publishing.value = true
   try {
-    if (editingId.value) {
-      await admin.updatePost(editingId.value, data)
-    } else {
-      await admin.createPost(data)
-      editingId.value = null
+    const data = {
+      title: title.value.trim(),
+      date: date.value,
+      summary: summary.value,
+      content: editor?.getMarkdown() || '',
+      tags: tags.value,
     }
+    if (editingId.value) await admin.updatePost(editingId.value, data)
+    else await admin.createPost(data)
     router.push('/desk')
   } catch (e) {
-    alert(e.message)
+    errMsg.value = e.message
+  } finally {
+    publishing.value = false
   }
 }
 
 async function deletePost() {
-  if (!editingId.value || !confirm('Delete this post?')) return
-  try { await admin.deletePost(editingId.value); router.push('/desk') } catch (e) { alert(e.message) }
+  if (!editingId.value || !confirm('确定删除这篇文章吗？此操作不可撤销。')) return
+  try {
+    await admin.deletePost(editingId.value)
+    router.push('/desk')
+  } catch (e) {
+    errMsg.value = e.message
+  }
 }
 
-/* Init */
+/* ── Init ── */
 onMounted(async () => {
-  await nextTick()
-  if (editingId.value) {
-    loadPost(editingId.value)
-  } else {
-    initEditor('')
+  if (!localStorage.getItem('admin_token')) {
+    router.replace('/desk')
+    return
   }
+  await nextTick()
+  if (editingId.value) loadPost(editingId.value)
+  else initEditor('')
 })
 
 onBeforeUnmount(() => {
-  if (editor) editor.destroy()
+  window.removeEventListener('theme-change', onTheme)
+  if (editor) { editor.destroy(); editor = null }
 })
 </script>
 
 <style scoped>
 /* ═══════════════════════════════════════════
-   WRITE — GLASSMORPHISM EDITION
+   WRITE
    ═══════════════════════════════════════════ */
 
-/* ── Shell ── */
 .write-shell {
   position: fixed; inset: 0; z-index: 999;
   display: flex; flex-direction: column;
@@ -221,7 +266,7 @@ onBeforeUnmount(() => {
 
 /* ── Toolbar ── */
 .write-toolbar {
-  height: 54px; display: flex; align-items: center; gap: 16px;
+  min-height: 56px; display: flex; align-items: center; gap: 14px;
   padding: 0 20px;
   border-bottom: 1px solid var(--glass-border);
   background: var(--bg-glass);
@@ -230,23 +275,32 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 .back-btn {
-  font-size: 0.85rem; color: var(--text-muted); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.85rem; color: var(--text-muted);
   transition: color 0.2s;
 }
-.back-btn:hover { color: var(--accent-light); }
+.back-btn:hover { color: var(--accent); }
 .write-mode { font-size: 0.8rem; color: var(--text-muted); }
 .toolbar-right { margin-left: auto; display: flex; gap: 8px; }
+
+.write-error {
+  margin: 0; padding: 10px 20px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444; font-size: 0.82rem;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+}
 
 /* ── Body ── */
 .write-body { display: flex; flex: 1; overflow: hidden; }
 
 /* ── Editor ── */
-.write-editor { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.write-editor { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .write-editor.with-meta { border-right: 1px solid var(--glass-border); }
 .write-title {
-  border: none; padding: 24px 28px 16px; font-size: 1.8rem; font-weight: 700;
+  border: none; padding: 22px 28px 14px; font-size: 1.7rem; font-weight: 700;
   background: transparent; color: var(--text-hero); outline: none;
   font-family: var(--font-display); letter-spacing: -0.5px;
+  flex-shrink: 0;
 }
 .write-title::placeholder { color: var(--text-muted); }
 .editor-stage { flex: 1; overflow: hidden; }
@@ -265,7 +319,7 @@ onBeforeUnmount(() => {
 }
 .write-meta label { display: block; font-size: 0.75rem; color: var(--text-muted); margin: 10px 0 4px; }
 .write-meta hr { border: none; border-top: 1px solid var(--glass-border); margin: 16px 0; }
-.tag-input-row { display: flex; gap: 4px; }
+.tag-input-row { display: flex; gap: 4px; align-items: flex-start; }
 .tag-input-row input { flex: 1; margin-bottom: 0; }
 
 /* ── Inputs ── */
@@ -291,37 +345,51 @@ onBeforeUnmount(() => {
 .mui-btn.raised { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 .mui-btn.raised:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.2); transform: translateY(-1px); }
 .mui-btn.raised:active { box-shadow: 0 1px 3px rgba(0,0,0,0.1); transform: translateY(0); }
-.mui-btn.primary {
-  background: var(--accent-gradient); color: #fff;
-  box-shadow: var(--glow-indigo);
-}
-.mui-btn.primary:hover { box-shadow: 0 0 24px rgba(99, 102, 241, 0.35); transform: translateY(-1px); }
-.mui-btn.outlined {
-  background: transparent; border: 1px solid var(--glass-border); color: var(--text-primary);
-}
+.mui-btn.primary { background: var(--accent-gradient); color: #fff; }
+.mui-btn.primary:hover { box-shadow: 0 0 22px rgba(41, 151, 255, 0.35); transform: translateY(-1px); }
+.mui-btn.outlined { background: transparent; border: 1px solid var(--glass-border); color: var(--text-primary); }
 .mui-btn.outlined:hover { border-color: var(--accent-2); background: var(--accent-dim); }
-.mui-btn.text { background: transparent; color: var(--accent-light); padding: 4px 10px; font-size: 0.8rem; }
+.mui-btn.text { background: transparent; color: var(--accent-light); padding: 6px 10px; font-size: 0.8rem; }
 .mui-btn.text:hover { background: var(--accent-dim); }
 .mui-btn.text.danger { color: #ef4444; }
 .mui-btn.text.danger:hover { background: rgba(239, 68, 68, 0.08); }
+.mui-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 /* ── Upload ── */
 .upload-area {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   border: 2px dashed var(--glass-border); border-radius: var(--radius);
-  padding: 18px; text-align: center; color: var(--text-muted);
+  padding: 16px; text-align: center; color: var(--text-muted);
   font-size: 0.8rem; cursor: pointer;
   transition: all 0.2s var(--ease);
 }
-.upload-area:hover { border-color: var(--accent-2); background: var(--accent-dim); }
+.upload-area:hover { border-color: var(--accent-2); background: var(--accent-dim); color: var(--accent); }
+.upload-area.busy { cursor: progress; opacity: 0.75; }
 .preview-pic { width: 100%; max-height: 150px; object-fit: cover; border-radius: var(--radius-sm); margin-top: 8px; }
 
 /* ── Tags ── */
 .tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .tag-pill {
-  font-size: 0.7rem; padding: 3px 10px; border-radius: 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.7rem; padding: 4px 10px; border-radius: 999px;
   background: var(--accent-dim); color: var(--accent-light);
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  cursor: pointer; transition: all 0.15s;
+  border: 1px solid rgba(41, 151, 255, 0.15);
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
 }
 .tag-pill:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .write-toolbar { padding: 0 12px; gap: 8px; min-height: 52px; }
+  .back-label { display: none; }
+  .btn-label { display: none; }
+  .write-body { flex-direction: column; overflow-y: auto; }
+  .write-editor { flex: none; }
+  .write-editor.with-meta { border-right: none; }
+  .write-title { font-size: 1.35rem; padding: 16px 16px 10px; }
+  .write-meta {
+    width: 100%; border-left: none;
+    border-top: 1px solid var(--glass-border);
+  }
+}
 </style>

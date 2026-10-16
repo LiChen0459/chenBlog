@@ -21,6 +21,9 @@ public/uploads/
 # Claude Code
 .claude/
 
+# WorkBuddy AI (agent working memory — not part of the blog)
+.workbuddy-ai/
+
 # IDE
 .vscode/
 .idea/
