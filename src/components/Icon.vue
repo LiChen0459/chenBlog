@@ -61,6 +61,7 @@ const ICONS = {
   tag: '<path d="M20.5 13.2 13.2 20.5a1.8 1.8 0 0 1-2.6 0L3.5 13.3V3.5h9.8l7.2 7.2a1.8 1.8 0 0 1 0 2.5z"/><circle cx="8" cy="8" r="1.4"/>',
   logout: '<path d="M15 4.5h3.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H15"/><path d="M10 16.5 5.5 12 10 7.5M5.5 12h9"/>',
   link: '<path d="M10 13.5a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 0 0-5.7-5.7l-1.3 1.3"/><path d="M14 10.5a4 4 0 0 0-5.7 0L5.7 13.1a4 4 0 0 0 5.7 5.7l1.3-1.3"/>',
+  list: '<circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/><path d="M9 6h11M9 12h11M9 18h11"/>',
   'panel-left': '<rect x="3.5" y="4" width="17" height="16" rx="2.4"/><path d="M9.5 4v16"/>',
   refresh: '<path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M21 11A9 9 0 0 0 6.2 5.2L2.5 9M3 13a9 9 0 0 0 14.8 5.8l3.7-3.8"/>',
   'alert-circle': '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.5v5M12 16.5h0"/>',

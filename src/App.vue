@@ -44,7 +44,7 @@
 
     <!-- Main content area -->
     <main class="main-content" :class="{ 'no-sidebar': !showSidebar }">
-      <div class="content-inner">
+      <div class="content-inner" :class="{ 'is-detail': isDetail }">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
             <component :is="Component" />
@@ -84,6 +84,8 @@ provide('toggleTheme', toggleTheme)
 /* ── Hide sidebar on admin routes ── */
 const route = useRoute()
 const showSidebar = computed(() => !route.path.startsWith('/desk'))
+/* ── Wider content container on the post detail page (room for the outline) ── */
+const isDetail = computed(() => route.name === 'BlogDetail')
 
 /* ── Year ── */
 const year = new Date().getFullYear()

@@ -922,3 +922,118 @@ img.lazy-img[loading] {
     scroll-behavior: auto !important;
   }
 }
+
+/* ═══════════════════════════════════════════
+   ARTICLE OUTLINE (TOC)
+   ═══════════════════════════════════════════ */
+/* Detail page gets a wider container so the outline fits beside the article. */
+.content-inner.is-detail { max-width: 1080px; }
+
+.detail-layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 48px;
+}
+.detail-layout > article { flex: 0 1 720px; min-width: 0; }
+
+/* Headings get scroll offset so they don't tuck under the mobile top bar. */
+.detail-body :is(h2, h3) { scroll-margin-top: 96px; }
+
+/* ── Outline rail (desktop) ── */
+.outline {
+  flex: 0 0 220px;
+  position: sticky;
+  top: 96px;
+  align-self: flex-start;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+.outline-title {
+  font-family: var(--font-mono);
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--text-muted); margin: 4px 0 12px;
+}
+.outline-list {
+  list-style: none;
+  display: flex; flex-direction: column; gap: 1px;
+  border-left: 1px solid var(--border);
+  margin-left: 2px;
+}
+.outline-link {
+  display: block;
+  margin-left: -1px;
+  padding: 5px 12px;
+  border-left: 2px solid transparent;
+  font-size: 0.8rem; line-height: 1.45;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+.outline-item--h3 .outline-link { padding-left: 26px; font-size: 0.78rem; color: var(--text-muted); }
+.outline-link:hover { color: var(--text-primary); background: var(--accent-dim); }
+.outline-link.is-active {
+  color: var(--accent); font-weight: 550;
+  border-left-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Floating button (narrow screens) ── */
+.outline-fab {
+  display: none;
+  position: fixed; right: 18px; bottom: 22px; z-index: 900;
+  align-items: center; gap: 7px;
+  padding: 10px 16px; border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  color: var(--text-primary); font: inherit; font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.outline-fab .icon { color: var(--accent); }
+.outline-fab:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+/* ── Bottom-sheet drawer (narrow screens) ── */
+.outline-backdrop {
+  position: fixed; inset: 0; z-index: 950;
+  background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);
+}
+.outline-drawer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 960;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  border-radius: 18px 18px 0 0;
+  padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height: 72vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.outline-drawer-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+}
+.outline-drawer-title {
+  font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 2px; color: var(--text-muted);
+}
+.outline-drawer-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.outline-drawer-close:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.outline-drawer .outline-list { border-left: none; margin-left: 0; }
+.outline-drawer .outline-link { margin-left: 0; border-left: none; border-radius: 8px; padding: 10px 12px; }
+.outline-drawer .outline-item--h3 .outline-link { padding-left: 28px; }
+.outline-drawer .outline-link.is-active { border-left: none; }
+
+/* ── Transitions ── */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.24s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.drawer-enter-active, .drawer-leave-active { transition: transform 0.3s var(--ease); }
+.drawer-enter-from, .drawer-leave-to { transform: translateY(100%); }
+
+/* ── Below 1360px: rail can't sit beside the article, use the FAB + drawer ── */
+@media (max-width: 1359px) {
+  .outline { display: none; }
+  .outline-fab { display: inline-flex; }
+}
