@@ -712,7 +712,7 @@ button { font-family: inherit; }
   font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px;
   line-height: 1.25; color: var(--text-hero);
 }
-.detail-header .tag-pills { margin-top: 14px; }
+.detail-header .tag-pills { margin-top: 0; }
 .detail-body { font-size: 1rem; line-height: 1.9; color: var(--text-primary); }
 .detail-body p { margin-bottom: 1.3em; }
 .detail-body h2 { font-size: 1.35rem; font-weight: 650; margin: 2em 0 0.6em; color: var(--text-hero); }
@@ -1074,8 +1074,29 @@ img.lazy-img[loading] {
 .tag-pill--link:hover { background: var(--accent-dim); color: var(--accent-ink); }
 
 .detail-tax {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
-  margin-top: 4px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 14px;
+}
+/* The #tag group shares the flex row with the category chip — any top offset
+   here makes the pills sink below the chip. */
+.detail-tax .tag-pills { margin-top: 0; gap: 6px; }
+/* Tags rank below the category chip: quiet outline pills with a # prefix,
+   accent reserved for hover. Keeps one accent element in the row instead of
+   a cluster of identical blue blobs. */
+.detail-tax .tag-pill {
+  font-size: 0.7rem; padding: 3px 10px;
+  color: var(--text-secondary); font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--border-hover);
+  border-radius: 999px;
+}
+.detail-tax .tag-pill::before {
+  content: '#'; margin-right: 4px;
+  font-family: var(--font-mono); color: var(--text-muted);
+}
+.detail-tax .tag-pill--link:hover {
+  background: var(--accent-dim); color: var(--accent-ink);
+  border-color: transparent;
 }
 
 /* ── Breadcrumbs (category / tag pages) ── */
