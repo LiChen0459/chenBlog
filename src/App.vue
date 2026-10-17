@@ -46,7 +46,9 @@
     <main class="main-content" :class="{ 'no-sidebar': !showSidebar }">
       <div class="content-inner" :class="{ 'is-detail': isDetail }">
         <router-view v-slot="{ Component }">
-          <transition name="page" mode="out-in">
+          <!-- NOTE: no mode="out-in" here — it deadlocks with <keep-alive> and
+               leaves the viewport blank when navigating back to a cached page. -->
+          <transition name="page">
             <keep-alive include="Blog,Moments,BlogDetail">
               <component :is="Component" />
             </keep-alive>
