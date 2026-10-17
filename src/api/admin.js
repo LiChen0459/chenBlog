@@ -99,6 +99,26 @@ export const admin = {
       body: JSON.stringify({ ids, action }),
     }),
 
+  // Standalone pages (关于我 / 友情链接 / …)
+  getPages: () => request('/api/pages'),
+  createPage: (data) =>
+    request('/api/pages', { method: 'POST', headers: jsonHeaders, body: JSON.stringify(data) }),
+  updatePage: (slug, data) =>
+    request(`/api/pages/${encodeURIComponent(slug)}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify(data) }),
+  deletePage: (slug) =>
+    request(`/api/pages/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
+
+  // Guestbook
+  // Hidden messages come back automatically: `request` attaches the admin token.
+  getMessages: () => request('/api/messages?limit=200'),
+  setMessageHidden: (id, hidden) =>
+    request(`/api/messages/${id}`, { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify({ hidden }) }),
+  deleteMessage: (id) =>
+    request(`/api/messages/${id}`, { method: 'DELETE' }),
+
+  // Taxonomy (categories + tags), used by the post editor's category suggestions
+  getTaxonomy: () => request('/api/posts/taxonomy'),
+
   // Settings
   getMomentsPassword: () => request('/api/settings/moments-password'),
   setMomentsPassword: (password) =>

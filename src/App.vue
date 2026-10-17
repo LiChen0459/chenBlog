@@ -26,6 +26,18 @@
           <Icon name="camera" :size="16" />
           <span class="nav-label">动态</span>
         </router-link>
+        <router-link to="/archive">
+          <Icon name="archive" :size="16" />
+          <span class="nav-label">归档</span>
+        </router-link>
+        <router-link to="/page/about">
+          <Icon name="user" :size="16" />
+          <span class="nav-label">关于</span>
+        </router-link>
+        <router-link to="/search" class="nav-search-link" title="搜索文章">
+          <Icon name="search" :size="16" />
+          <span class="nav-label">搜索</span>
+        </router-link>
       </nav>
 
       <button
@@ -49,7 +61,7 @@
           <!-- NOTE: no mode="out-in" here — it deadlocks with <keep-alive> and
                leaves the viewport blank when navigating back to a cached page. -->
           <transition name="page">
-            <keep-alive include="Blog,Moments,BlogDetail">
+            <keep-alive include="Blog,Moments,BlogDetail,Archive,Search,PageView,Guestbook,Category,Tag">
               <component :is="Component" />
             </keep-alive>
           </transition>
@@ -57,6 +69,13 @@
       </div>
       <div class="mobile-footer">
         <p>© {{ year }} Chen's Blog · keep writing, keep sharing</p>
+        <p class="mobile-footer-links">
+          <router-link to="/archive">归档</router-link>
+          <router-link to="/page/about">关于</router-link>
+          <router-link to="/page/friends">友链</router-link>
+          <router-link to="/guestbook">留言板</router-link>
+          <a href="/rss.xml" title="RSS 订阅">RSS</a>
+        </p>
       </div>
     </main>
   </div>

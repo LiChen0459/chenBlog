@@ -18,8 +18,20 @@
             </span>
           </div>
           <h1>{{ post.title }}</h1>
-          <div class="tag-pills" v-if="post.tags?.length">
-            <span class="tag-pill" v-for="t in post.tags" :key="t">{{ t }}</span>
+          <div class="detail-tax">
+            <router-link
+              v-if="post.category"
+              class="card-category"
+              :to="`/category/${post.category.split('/').map(encodeURIComponent).join('/')}`"
+            >{{ post.category }}</router-link>
+            <div class="tag-pills" v-if="post.tags?.length">
+              <router-link
+                v-for="t in post.tags"
+                :key="t"
+                class="tag-pill tag-pill--link"
+                :to="`/tag/${encodeURIComponent(t)}`"
+              >{{ t }}</router-link>
+            </div>
           </div>
         </header>
         <div class="section-line">
@@ -83,10 +95,7 @@ import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import { getPost } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
-import { marked } from 'marked'
-import katex from 'katex'
-
-marked.setOptions({ breaks: true, gfm: true })
+import { renderMarkdown, slugify } from '../utils/markdown.js'
 
 const route = useRoute()
 const loading = ref(true)
@@ -96,45 +105,7 @@ const outline = ref([])
 const activeId = ref('')
 const outlineOpen = ref(false)
 
-/** Render LaTeX without touching code blocks / inline code / ordinary dollar signs. */
-function renderMath(html) {
-  // 1. Protect code regions so `$` inside them is never treated as math.
-  const codeChunks = []
-  const protectedHtml = html.replace(/<(pre|code)\b[\s\S]*?<\/\1>/gi, (match) => {
-    codeChunks.push(match)
-    return `\u0000CODE${codeChunks.length - 1}\u0000`
-  })
-
-  // 2. Block math: $$ ... $$
-  let out = protectedHtml.replace(/\$\$([\s\S]+?)\$\$/g, (raw, tex) => {
-    try { return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false }) }
-    catch { return raw }
-  })
-
-  // 3. Inline math: $...$ — only when it actually looks like LaTeX, so "$100" stays untouched.
-  out = out.replace(/\$([^\n$]+?)\$/g, (raw, tex) => {
-    if (!/\\[a-zA-Z]|[\^_{}=]/.test(tex)) return raw
-    try { return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }) }
-    catch { return raw }
-  })
-
-  // 4. Restore the protected code regions.
-  return out.replace(/\u0000CODE(\d+)\u0000/g, (_, i) => codeChunks[Number(i)])
-}
-
-const renderedContent = computed(() => {
-  if (!post.value?.content) return ''
-  return renderMath(marked.parse(post.value.content))
-})
-
-/** Turn a heading's text into a URL-safe id (keeps CJK + alphanumerics). */
-function slugify(text) {
-  const base = text.trim().toLowerCase()
-    .replace(/[^\w一-龥]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return base || 'section'
-}
+const renderedContent = computed(() => renderMarkdown(post.value?.content || ''))
 
 /** Walk the rendered article, assign ids to h2/h3 and build the outline list. */
 function buildOutline() {

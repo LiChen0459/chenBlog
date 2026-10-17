@@ -1,8 +1,22 @@
 import { serve } from '@hono/node-server'
 import { createApp } from './app.js'
+import { feedApp } from './routes/feeds.js'
 import { storageMode } from './repositories/index.js'
 
 const app = createApp()
+// Feeds live at the site root (/rss.xml, /atom.xml, /sitemap.xml) while the
+// API is mounted under /api — try the feed router first, then fall back.
+const feeds = feedApp()
+const FEED_PATHS = new Set(['/rss.xml', '/atom.xml', '/sitemap.xml'])
+
+async function handler(req, ...rest) {
+  if (FEED_PATHS.has(new URL(req.url).pathname)) {
+    const res = await feeds.fetch(req, ...rest)
+    if (res.status !== 404) return res
+  }
+  return app.fetch(req, ...rest)
+}
+
 const port = process.env.PORT || 3001
 
 console.log(`  API  → http://localhost:${port}`)
@@ -19,4 +33,4 @@ console.log('  提示 → 前端单独跑 npm run dev 时本进程要一直开�
 console.log('         或者直接用 npm run dev:all 同时启动前后端。')
 console.log('')
 
-serve({ fetch: app.fetch, port })
+serve({ fetch: handler, port })

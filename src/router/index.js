@@ -19,6 +19,39 @@ const routes = [
     component: () => import('../views/Moments.vue'),
   },
   {
+    // 归档：时间线 + 分类 + 标签
+    path: '/archive',
+    name: 'Archive',
+    component: () => import('../views/Archive.vue'),
+  },
+  {
+    // 分类支持层级路径：/category/技术 与 /category/技术/前端
+    path: '/category/:pathMatch(.*)*',
+    name: 'Category',
+    component: () => import('../views/Category.vue'),
+  },
+  {
+    path: '/tag/:name',
+    name: 'Tag',
+    component: () => import('../views/Tag.vue'),
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('../views/Search.vue'),
+  },
+  {
+    // 独立页面：关于我、友情链接等（不按时间排序）
+    path: '/page/:slug',
+    name: 'Page',
+    component: () => import('../views/PageView.vue'),
+  },
+  {
+    path: '/guestbook',
+    name: 'Guestbook',
+    component: () => import('../views/Guestbook.vue'),
+  },
+  {
     path: '/desk',
     name: 'Admin',
     component: () => import('../views/Admin.vue'),

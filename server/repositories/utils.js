@@ -35,6 +35,51 @@ export function today() {
 }
 
 /**
+ * Build the category tree + tag cloud from a list of posts (any shape that
+ * carries `category` / `tags`). A category path like "技术/前端/Vue" registers
+ * every prefix node ("技术", "技术/前端", "技术/前端/Vue") so the archive can
+ * render real hierarchy without a parent_id column.
+ */
+export function buildTaxonomy(posts) {
+  const catMap = new Map()
+  const tagMap = new Map()
+  for (const p of posts || []) {
+    const raw = String(p.category || '').trim()
+    if (raw) {
+      const parts = raw.split('/').map((s) => s.trim()).filter(Boolean)
+      let path = ''
+      for (const part of parts) {
+        path = path ? `${path}/${part}` : part
+        const node = catMap.get(path) || { path, name: part, count: 0 }
+        node.count++
+        catMap.set(path, node)
+      }
+    }
+    for (const t of parseList(p.tags)) {
+      tagMap.set(t, (tagMap.get(t) || 0) + 1)
+    }
+  }
+  return {
+    categories: [...catMap.values()].sort((a, b) => b.count - a.count || a.path.localeCompare(b.path)),
+    tags: [...tagMap.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+  }
+}
+
+/**
+ * Escape LIKE/ILIKE wildcards in user input so "50%" does not match everything.
+ * Use together with an explicit `ESCAPE '\'` clause.
+ */
+export function escapeLike(value) {
+  return String(value).replace(/[\\%_]/g, (ch) => `\\${ch}`)
+}
+
+/** Guestbook caps — cheap but effective spam containment. */
+export const MAX_NICKNAME_LEN = 20
+export const MAX_MESSAGE_LEN = 500
+
+/**
  * Clamp a caller-supplied `limit` into a safe positive integer.
  * Returns `fallback` (null = "no limit") when absent/invalid.
  */

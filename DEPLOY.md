@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS posts (
   date       DATE NOT NULL DEFAULT CURRENT_DATE,
   summary    TEXT DEFAULT '',
   content    TEXT DEFAULT '',
+  category   TEXT DEFAULT '',
   tags       TEXT DEFAULT '[]',
   pinned     BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -37,17 +38,35 @@ CREATE TABLE IF NOT EXISTS settings (
   value      TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS pages (
+  id         SERIAL PRIMARY KEY,
+  slug       TEXT UNIQUE NOT NULL,
+  title      TEXT NOT NULL,
+  content    TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id         SERIAL PRIMARY KEY,
+  nickname   TEXT NOT NULL DEFAULT '',
+  content    TEXT NOT NULL,
+  hidden     BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
 > **已有数据库升级？** 不用重建表，直接跑 `npm run db:migrate`
 > （`server/db/migrate.js` 里全是幂等语句），或手动执行：
 >
 > ```sql
-> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS tags   TEXT    DEFAULT '[]';
-> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
-> ALTER TABLE moments ADD COLUMN IF NOT EXISTS tags   TEXT    DEFAULT '[]';
-> ALTER TABLE moments ADD COLUMN IF NOT EXISTS images TEXT    DEFAULT '[]';
-> ALTER TABLE moments ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE;
+> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS tags     TEXT    DEFAULT '[]';
+> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS category TEXT    DEFAULT '';
+> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pinned   BOOLEAN DEFAULT FALSE;
+> ALTER TABLE moments ADD COLUMN IF NOT EXISTS tags     TEXT    DEFAULT '[]';
+> ALTER TABLE moments ADD COLUMN IF NOT EXISTS images   TEXT    DEFAULT '[]';
+> ALTER TABLE moments ADD COLUMN IF NOT EXISTS hidden   BOOLEAN DEFAULT FALSE;
 >
 > CREATE TABLE IF NOT EXISTS settings (
 >   key        TEXT PRIMARY KEY,
@@ -55,10 +74,32 @@ CREATE TABLE IF NOT EXISTS settings (
 >   updated_at TIMESTAMPTZ DEFAULT NOW()
 > );
 >
+> CREATE TABLE IF NOT EXISTS pages (
+>   id         SERIAL PRIMARY KEY,
+>   slug       TEXT UNIQUE NOT NULL,
+>   title      TEXT NOT NULL,
+>   content    TEXT DEFAULT '',
+>   created_at TIMESTAMPTZ DEFAULT NOW(),
+>   updated_at TIMESTAMPTZ DEFAULT NOW()
+> );
+>
+> CREATE TABLE IF NOT EXISTS messages (
+>   id         SERIAL PRIMARY KEY,
+>   nickname   TEXT NOT NULL DEFAULT '',
+>   content    TEXT NOT NULL,
+>   hidden     BOOLEAN DEFAULT FALSE,
+>   created_at TIMESTAMPTZ DEFAULT NOW()
+> );
+>
 > -- 索引：文章/动态列表的排序键，数据量大时避免全表扫描 + 排序
 > CREATE INDEX IF NOT EXISTS posts_list_idx    ON posts   (pinned DESC, date DESC);
 > CREATE INDEX IF NOT EXISTS moments_list_idx  ON moments (date DESC, time DESC);
 > CREATE INDEX IF NOT EXISTS moments_hidden_idx ON moments (hidden) WHERE hidden IS TRUE;
+>
+> -- 分类筛选、留言按时间倒序、独立页面按地址查
+> CREATE INDEX IF NOT EXISTS posts_category_idx ON posts (category);
+> CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at DESC);
+> CREATE INDEX IF NOT EXISTS pages_slug_idx ON pages (slug);
 > ```
 
 > **隐藏动态**：在后台「动态管理」点某条的「隐藏」，或编辑时勾选「隐藏这条动态」。
@@ -78,6 +119,7 @@ Vercel Dashboard → 你的项目 → **Settings** → **Environment Variables**
 | `ADMIN_TOKEN` | 自己生成一个长随机串 | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 | `VITE_BLOG_URL` | `https://你的博客域名.vercel.app` | 你的博客地址 |
 | `CHENWEBSITE_URL` | `https://你的主站地址.vercel.app` | 你的主站 |
+| `SITE_URL` | `https://你的博客域名.vercel.app` | 订阅源与 sitemap 的绝对地址（不填则用请求域名） |
 | `DATABASE_URL` | (自动注入) | 创建完 Neon 就有了 |
 | `BLOB_READ_WRITE_TOKEN` | (自动注入) | 创建完 Blob 就有了 |
 
@@ -112,6 +154,20 @@ curl -X POST $URL/api/posts \
 
 # 访问博客
 open $URL
+
+# 订阅源与站点地图（实时从数据库生成）
+curl $URL/rss.xml
+curl $URL/atom.xml
+curl $URL/sitemap.xml
+
+# 分类 / 标签 / 搜索
+curl "$URL/api/posts/taxonomy"
+curl "$URL/api/posts?category=技术/前端"
+curl "$URL/api/posts/search?q=关键词"
+
+# 独立页面与留言板
+curl $URL/api/pages
+curl -X POST $URL/api/messages -H "Content-Type: application/json" -d '{"nickname":"访客","content":"你好"}'
 ```
 
 ---

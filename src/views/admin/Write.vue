@@ -43,6 +43,17 @@
         <label>摘要</label>
         <textarea v-model="summary" class="mui-input" rows="3" placeholder="简要摘要..."></textarea>
 
+        <label>分类</label>
+        <input
+          v-model="category"
+          list="write-category-options"
+          class="mui-input"
+          placeholder="分类（支持 父/子 层级，如 技术/前端）"
+        />
+        <datalist id="write-category-options">
+          <option v-for="c in categoryOptions" :key="c.path" :value="c.path"></option>
+        </datalist>
+
         <label>标签</label>
         <div class="tag-input-row">
           <input
@@ -104,6 +115,8 @@ const editingId = ref(route.query.id ? Number(route.query.id) : null)
 const title = ref('')
 const date = ref(new Date().toISOString().slice(0, 10))
 const summary = ref('')
+const category = ref('')
+const categoryOptions = ref([])
 const tags = ref([])
 const tagInput = ref('')
 const coverImage = ref('')
@@ -192,6 +205,7 @@ async function loadPost(id) {
     title.value = p.title || ''
     date.value = p.date || date.value
     summary.value = p.summary || ''
+    category.value = p.category || ''
     tags.value = p.tags || []
     initEditor(p.content || '')
   } catch (e) {
@@ -212,6 +226,7 @@ async function publish() {
       title: title.value.trim(),
       date: date.value,
       summary: summary.value,
+      category: category.value,
       content: editor?.getMarkdown() || '',
       tags: tags.value,
     }
@@ -244,6 +259,11 @@ onMounted(async () => {
   await nextTick()
   if (editingId.value) loadPost(editingId.value)
   else initEditor('')
+
+  // Category suggestions are advisory — a failure must not block writing.
+  admin.getTaxonomy()
+    .then((tax) => { categoryOptions.value = tax?.categories || [] })
+    .catch(() => {})
 })
 
 onBeforeUnmount(() => {

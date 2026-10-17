@@ -94,6 +94,15 @@
           <Icon name="camera" :size="16" />
           <span class="sb-label">动态</span>
         </button>
+        <button :class="{ active: nav === 'pages' }" @click="nav = 'pages'">
+          <Icon name="layout" :size="16" />
+          <span class="sb-label">页面</span>
+        </button>
+        <button :class="{ active: nav === 'messages' }" @click="nav = 'messages'">
+          <Icon name="message" :size="16" />
+          <span class="sb-label">留言</span>
+          <span v-if="messages.length" class="sb-badge">{{ messages.length }}</span>
+        </button>
         <button :class="{ active: nav === 'settings' }" @click="nav = 'settings'">
           <Icon name="sliders" :size="16" />
           <span class="sb-label">设置</span>
@@ -315,6 +324,17 @@
                 <input type="date" v-model="postForm.date" class="mui-input short" />
               </div>
               <input v-model="postForm.summary" placeholder="摘要..." class="mui-input" />
+              <div class="form-row">
+                <input
+                  v-model="postForm.category"
+                  list="post-category-options"
+                  class="mui-input"
+                  placeholder="分类（支持 父/子 层级，如 技术/前端）"
+                />
+                <datalist id="post-category-options">
+                  <option v-for="c in categoryOptions" :key="c.path" :value="c.path"></option>
+                </datalist>
+              </div>
               <div class="tag-input-inline">
                 <input v-model="postTagInput" placeholder="标签（回车或逗号添加）" class="mui-input" @keyup.enter="addPostTag" @keyup.","="addPostTag" />
                 <div class="tag-pills" v-if="postForm.tags?.length">
@@ -526,6 +546,141 @@
           </div>
         </div>
         </Transition>
+      </div>
+
+      <!-- ═══ 页面管理（关于我 / 友情链接等独立页面） ═══ -->
+      <div v-else-if="nav === 'pages'" key="pages">
+        <div class="page-heading-row">
+          <h2 class="page-heading">页面管理</h2>
+          <button class="mui-btn raised primary" @click="openPageForm()">
+            <Icon name="plus" :size="14" />
+            新建页面
+          </button>
+        </div>
+
+        <div class="mui-table" v-if="pages.length">
+          <div class="mui-tr header">
+            <span></span><span>标题</span><span>地址</span><span>更新时间</span><span></span>
+          </div>
+          <div v-for="pg in pages" :key="pg.slug" class="mui-tr">
+            <span class="page-icon"><Icon name="layout" :size="15" /></span>
+            <span class="title">{{ pg.title }}</span>
+            <span class="slug">/page/{{ pg.slug }}</span>
+            <span class="date">{{ pg.updated_at || '—' }}</span>
+            <span class="actions">
+              <router-link :to="`/page/${pg.slug}`" class="mui-btn text" target="_blank">
+                <Icon name="arrow-up-right" :size="13" />
+                查看
+              </router-link>
+              <button class="mui-btn text" @click="openPageForm(pg)">
+                <Icon name="edit" :size="13" />
+                编辑
+              </button>
+              <button class="mui-btn text danger" @click="confirmDel('page', pg.slug)">
+                <Icon name="trash" :size="13" />
+                删除
+              </button>
+            </span>
+          </div>
+        </div>
+
+        <div v-else-if="!loadingData" class="empty-state">
+          <Icon name="file-text" :size="26" />
+          <span>还没有独立页面</span>
+        </div>
+
+        <!-- Page Editor Modal -->
+        <Transition name="dialog">
+        <div v-if="showPageForm" class="mui-overlay" @click.self="closePageForm">
+          <div class="mui-dialog wide">
+            <div class="mui-dialog-header">
+              <h3>{{ editingPage?.slug ? '编辑页面' : '新建页面' }}</h3>
+              <button class="mui-close" aria-label="关闭" @click="closePageForm">
+                <Icon name="x" :size="16" />
+              </button>
+            </div>
+            <div class="mui-dialog-body">
+              <div class="form-row">
+                <input v-model="pageForm.title" placeholder="页面标题，如「关于我」" class="mui-input" />
+              </div>
+              <div class="form-row">
+                <input
+                  v-model="pageForm.slug"
+                  class="mui-input"
+                  placeholder="页面地址（英文小写 + 连字符，如 about）"
+                  :disabled="!!editingPage?.slug"
+                />
+              </div>
+              <p class="form-hint">地址即前台链接 /page/&lt;地址&gt;，创建后不可修改。</p>
+              <label class="form-label">内容 <span class="hint">— 支持 Markdown</span></label>
+              <textarea
+                v-model="pageForm.content"
+                class="mui-input page-editor"
+                rows="14"
+                placeholder="页面内容，支持 Markdown 与 LaTeX 公式…"
+              ></textarea>
+            </div>
+            <div class="mui-dialog-footer">
+              <button class="mui-btn outlined" @click="closePageForm">取消</button>
+              <button
+                class="mui-btn raised primary"
+                :disabled="!pageForm.title.trim() || !pageForm.slug.trim() || isBusy('save-page')"
+                @click="savePage"
+              >
+                <Icon v-if="isBusy('save-page')" name="loader" :size="14" class="spin" />
+                {{ isBusy('save-page') ? '保存中…' : '保存' }}
+              </button>
+            </div>
+          </div>
+        </div>
+        </Transition>
+      </div>
+
+      <!-- ═══ 留言管理 ═══ -->
+      <div v-else-if="nav === 'messages'" key="messages">
+        <h2 class="page-heading">留言管理</h2>
+
+        <div class="moment-grid" v-if="messages.length">
+          <div
+            v-for="msg in messages"
+            :key="msg.id"
+            class="moment-item"
+            :class="{ 'is-hidden': msg.hidden }"
+          >
+            <div class="moment-thumbs">
+              <div class="moment-pic placeholder gb-avatar-admin">{{ (msg.nickname || '匿')[0] }}</div>
+            </div>
+            <div class="moment-body">
+              <span class="moment-meta">
+                {{ msg.nickname || '匿名' }} · {{ msg.date }} {{ msg.time }}
+                <span v-if="msg.hidden" class="hidden-flag"><Icon name="lock" :size="10" /> 已隐藏</span>
+              </span>
+              <p>{{ msg.content }}</p>
+            </div>
+            <div class="moment-actions">
+              <button
+                class="mui-btn text"
+                :class="{ 'is-pinned': msg.hidden }"
+                :title="msg.hidden ? '取消隐藏（公开可见）' : '隐藏（前台不可见）'"
+                :disabled="isBusy(`msg-hide-${msg.id}`)"
+                @click="toggleMessageHidden(msg)"
+              >
+                <Icon v-if="isBusy(`msg-hide-${msg.id}`)" name="loader" :size="13" class="spin" />
+                <Icon v-else :name="msg.hidden ? 'unlock' : 'lock'" :size="13" />
+                {{ msg.hidden ? '显示' : '隐藏' }}
+              </button>
+              <button class="mui-btn text danger" @click="confirmDel('message', msg.id)">
+                <Icon name="trash" :size="13" />
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!loadingData" class="empty-state">
+          <Icon name="message" :size="26" />
+          <span>还没有留言</span>
+        </div>
       </div>
 
       <!-- ═══ 设置 ═══ -->
@@ -743,8 +898,12 @@ const nav = ref('dashboard')
 /* ── Data ── */
 const posts = ref([])
 const moments = ref([])
+const pages = ref([])
+const messages = ref([])
 const todayCount = ref(0)
 const loadingData = ref(false)
+/** Existing category paths, offered as suggestions in the post editor. */
+const categoryOptions = ref([])
 /**
  * False until the first load resolves. The stat cards render `0` while the
  * arrays are still empty, which reads as real data ("文章总数 0") even though
@@ -762,13 +921,21 @@ async function loadAll() {
     todayCount.value = moments.value.filter(x => x.date === today).length
   } catch (e) {
     toastMsg(e.message, 'error')
-  } finally {
-    loadingData.value = false
-    // Flip even on failure so a broken request does not shimmer forever.
-    dataReady.value = true
-    // A reload may have removed rows that were still ticked.
-    pruneSelection()
   }
+  // Pages / messages / taxonomy load independently: a failure in one must not
+  // blank the whole dashboard.
+  try { pages.value = await admin.getPages() || [] } catch (e) { toastMsg(`页面加载失败：${e.message}`, 'error') }
+  try { messages.value = await admin.getMessages() || [] } catch (e) { toastMsg(`留言加载失败：${e.message}`, 'error') }
+  try {
+    const tax = await admin.getTaxonomy()
+    categoryOptions.value = tax?.categories || []
+  } catch { /* taxonomy is advisory only */ }
+
+  loadingData.value = false
+  // Flip even on failure so a broken request does not shimmer forever.
+  dataReady.value = true
+  // A reload may have removed rows that were still ticked.
+  pruneSelection()
 }
 
 /** Verify a stored token before showing the dashboard. */
@@ -809,7 +976,7 @@ async function withBusy(key, fn) {
 /* ── Confirm ── */
 const confirmState = reactive({ show: false, msg: '', key: '', okLabel: '确认删除', onOk: () => {} })
 function confirmDel(type, id) {
-  const label = type === 'post' ? '文章' : '动态'
+  const label = { post: '文章', moment: '动态', page: '页面', message: '留言' }[type] || '内容'
   confirmState.msg = `确定要删除这条${label}吗？此操作不可撤销。`
   confirmState.key = `del-${type}-${id}`
   confirmState.okLabel = '确认删除'
@@ -817,7 +984,9 @@ function confirmDel(type, id) {
   confirmState.onOk = () => withBusy(confirmState.key, async () => {
     try {
       if (type === 'post') { await admin.deletePost(id); await loadPosts() }
-      else { await admin.deleteMoment(id); await loadMoments() }
+      else if (type === 'moment') { await admin.deleteMoment(id); await loadMoments() }
+      else if (type === 'page') { await admin.deletePage(id); await loadPages() }
+      else if (type === 'message') { await admin.deleteMessage(id); await loadMessages() }
       confirmState.show = false
       toastMsg('已删除')
     } catch (e) { toastMsg(e.message, 'error') }
@@ -923,7 +1092,7 @@ const showPostForm = ref(false)
 const editingPost = ref(null)
 const postFormLoading = ref(false)
 const editorLoading = ref(false)
-const postForm = reactive({ title: '', date: '', summary: '', content: '', tags: [] })
+const postForm = reactive({ title: '', date: '', summary: '', category: '', content: '', tags: [] })
 const postTagInput = ref('')
 const editorContainer = ref(null)
 let editorInstance = null
@@ -988,6 +1157,7 @@ async function openPostForm(post = null) {
   postForm.title = post?.title || ''
   postForm.date = post?.date || new Date().toISOString().slice(0, 10)
   postForm.summary = post?.summary || ''
+  postForm.category = post?.category || ''
   postForm.content = ''
   postForm.tags = post?.tags ? [...post.tags] : []
   showPostForm.value = true
@@ -1001,6 +1171,7 @@ async function openPostForm(post = null) {
         postForm.title = full?.title ?? postForm.title
         postForm.date = full?.date ?? postForm.date
         postForm.summary = full?.summary ?? postForm.summary
+        postForm.category = full?.category ?? postForm.category
         postForm.content = full?.content || ''
         postForm.tags = full?.tags ? [...full.tags] : postForm.tags
       } catch (e) {
@@ -1136,6 +1307,69 @@ async function toggleHidden(m) {
 
 async function loadMoments() {
   try { moments.value = await admin.getMoments() } catch (e) { toastMsg(e.message, 'error') }
+}
+
+/* ── Standalone pages ── */
+const showPageForm = ref(false)
+const editingPage = ref(null)
+const pageForm = reactive({ title: '', slug: '', content: '' })
+
+function openPageForm(page = null) {
+  editingPage.value = page
+  pageForm.title = page?.title || ''
+  pageForm.slug = page?.slug || ''
+  pageForm.content = page?.content || ''
+  showPageForm.value = true
+}
+
+function closePageForm() {
+  showPageForm.value = false
+  editingPage.value = null
+}
+
+async function savePage() {
+  if (!pageForm.title.trim()) { toastMsg('请填写页面标题', 'error'); return }
+  await withBusy('save-page', async () => {
+    try {
+      const isEdit = !!editingPage.value?.slug
+      if (isEdit) {
+        // The slug is disabled while editing — keep the original key stable.
+        await admin.updatePage(editingPage.value.slug, {
+          title: pageForm.title.trim(),
+          content: pageForm.content,
+        })
+      } else {
+        await admin.createPage({
+          title: pageForm.title.trim(),
+          slug: pageForm.slug.trim(),
+          content: pageForm.content,
+        })
+      }
+      closePageForm()
+      await loadPages()
+      toastMsg(isEdit ? '页面已更新' : '页面已创建')
+    } catch (e) { toastMsg(e.message, 'error') }
+  })
+}
+
+async function loadPages() {
+  try { pages.value = await admin.getPages() || [] } catch (e) { toastMsg(e.message, 'error') }
+}
+
+/* ── Guestbook messages ── */
+async function loadMessages() {
+  try { messages.value = await admin.getMessages() || [] } catch (e) { toastMsg(e.message, 'error') }
+}
+
+/** Flip one message between hidden and public. */
+async function toggleMessageHidden(msg) {
+  await withBusy(`msg-hide-${msg.id}`, async () => {
+    try {
+      await admin.setMessageHidden(msg.id, !msg.hidden)
+      await loadMessages()
+      toastMsg(msg.hidden ? '已设为公开' : '已隐藏（前台不可见）')
+    } catch (e) { toastMsg(e.message, 'error') }
+  })
 }
 
 /* ── Settings: moments unlock password ── */
@@ -1369,6 +1603,17 @@ watch(showPostForm, (v) => {
   color: #fff; font-weight: 600;
   box-shadow: 0 4px 14px rgba(41, 151, 255, 0.28);
 }
+/* Unread-style count on the 留言 nav item. Pushed right, and readable on both
+   the plain sidebar surface and the active gradient background. */
+.sb-badge {
+  margin-left: auto;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  background: var(--accent-dim); color: var(--accent-ink);
+  font-size: 0.68rem; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.sb-nav button.active .sb-badge { background: rgba(255, 255, 255, 0.25); color: #fff; }
 .sb-footer { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
 .sb-site-link, .sb-theme-btn, .sb-logout {
   display: flex; align-items: center; gap: 8px;
@@ -1600,6 +1845,9 @@ watch(showPostForm, (v) => {
 }
 .pin-mark { color: var(--accent); }
 .mui-tr .date { color: var(--text-muted); font-size: 0.8rem; }
+/* Pages table: leading icon cell + monospace slug so the URL reads as an URL. */
+.mui-tr .page-icon { color: var(--text-muted); display: inline-flex; }
+.mui-tr .slug { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mui-tr .summary { color: var(--text-secondary); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mui-tr .actions { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
 
@@ -1675,6 +1923,14 @@ watch(showPostForm, (v) => {
 }
 .mui-input:focus { outline: none; border-color: var(--accent); box-shadow: var(--glow-indigo); }
 .mui-input.short { width: auto; flex: 1; }
+.form-hint { font-size: 0.76rem; color: var(--text-muted); margin: -4px 0 10px; }
+/* Standalone-page content editor: plain textarea, tall and monospaced so the
+   Markdown source keeps its readable shape. The rich Toast UI editor is post-only. */
+.mui-input.page-editor {
+  min-height: 320px; resize: vertical; line-height: 1.65;
+  font-family: var(--font-mono); font-size: 0.84rem;
+  white-space: pre-wrap; overflow-wrap: break-word;
+}
 
 /* ── Editor ── */
 .editor-wrap {
@@ -1703,6 +1959,13 @@ watch(showPostForm, (v) => {
   background: var(--bg-secondary); flex-shrink: 0;
 }
 .moment-pic.placeholder { color: var(--text-muted); }
+/* Guestbook moderation rows reuse .moment-pic, but the avatar stands in for the
+   nickname — same accent gradient as the public guestbook, with white initials. */
+.moment-pic.gb-avatar-admin {
+  background: var(--accent-gradient);
+  color: #fff; font-weight: 700; font-size: 1.1rem;
+  border: none;
+}
 .thumb-count {
   position: absolute; right: -6px; bottom: -6px;
   min-width: 20px; height: 20px; padding: 0 5px;
@@ -1781,8 +2044,12 @@ watch(showPostForm, (v) => {
   .sb-brand { padding: 0 8px 0 0; flex-shrink: 0; gap: 8px; }
   .sb-logo { width: 30px; height: 30px; font-size: 0.9rem; }
   .sb-name { display: none; }
-  .sb-nav { flex-direction: row; flex: 1; gap: 2px; padding: 0; justify-content: center; }
-  .sb-nav button { padding: 8px 10px; font-size: 0.75rem; gap: 6px; }
+  /* Six sections now share the top bar — let it scroll instead of squashing
+     the labels, and let the 留言 badge sit inline with its label. */
+  .sb-nav { flex-direction: row; flex: 1; gap: 2px; padding: 0; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+  .sb-nav::-webkit-scrollbar { display: none; }
+  .sb-nav button { padding: 8px 10px; font-size: 0.75rem; gap: 6px; flex-shrink: 0; }
+  .sb-badge { margin-left: 2px; }
   .sb-footer { flex-direction: row; padding: 0; gap: 4px; flex-shrink: 0; align-items: center; }
   .sb-site-link, .sb-logout { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 50%; }
   .sb-site-link .sb-label, .sb-logout .sb-label, .sb-theme-btn .sb-label { display: none; }

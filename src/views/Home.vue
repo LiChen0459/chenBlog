@@ -9,6 +9,24 @@
       <p class="hero-desc">
         记录技术思考，分享生活碎片。<br />不追逐热点，只写自己的节奏。
       </p>
+      <div class="hero-links">
+        <router-link to="/archive" class="hero-link">
+          <Icon name="archive" :size="14" />
+          归档
+        </router-link>
+        <router-link to="/page/about" class="hero-link">
+          <Icon name="user" :size="14" />
+          关于我
+        </router-link>
+        <router-link to="/guestbook" class="hero-link">
+          <Icon name="message" :size="14" />
+          留言板
+        </router-link>
+        <a href="/rss.xml" class="hero-link" title="RSS 订阅">
+          <Icon name="rss" :size="14" />
+          RSS
+        </a>
+      </div>
     </section>
 
     <!-- Recent Posts -->

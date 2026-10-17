@@ -22,6 +22,7 @@ await sql`
     date       DATE NOT NULL DEFAULT CURRENT_DATE,
     summary    TEXT DEFAULT '',
     content    TEXT DEFAULT '',
+    category   TEXT DEFAULT '',
     tags       TEXT DEFAULT '[]',
     pinned     BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -50,9 +51,31 @@ await sql`
   )
 `
 
+await sql`
+  CREATE TABLE IF NOT EXISTS pages (
+    id         SERIAL PRIMARY KEY,
+    slug       TEXT UNIQUE NOT NULL,
+    title      TEXT NOT NULL,
+    content    TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`
+
+await sql`
+  CREATE TABLE IF NOT EXISTS messages (
+    id         SERIAL PRIMARY KEY,
+    nickname   TEXT NOT NULL DEFAULT '',
+    content    TEXT NOT NULL,
+    hidden     BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`
+
 /* ── Upgrade databases created by an older version ── */
-await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS tags   TEXT    DEFAULT '[]'`
-await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE`
+await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS tags     TEXT    DEFAULT '[]'`
+await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pinned   BOOLEAN DEFAULT FALSE`
+await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS category TEXT    DEFAULT ''`
 await sql`ALTER TABLE moments ADD COLUMN IF NOT EXISTS tags   TEXT    DEFAULT '[]'`
 await sql`ALTER TABLE moments ADD COLUMN IF NOT EXISTS images TEXT    DEFAULT '[]'`
 await sql`ALTER TABLE moments ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE`
@@ -61,9 +84,12 @@ await sql`ALTER TABLE moments ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FA
    Both list endpoints sort by these exact orderings; without an index Postgres
    does a full scan + sort on every request, which is the main reason a large
    archive gets slow. */
-await sql`CREATE INDEX IF NOT EXISTS posts_list_idx   ON posts   (pinned DESC, date DESC)`
-await sql`CREATE INDEX IF NOT EXISTS moments_list_idx ON moments (date DESC, time DESC)`
-await sql`CREATE INDEX IF NOT EXISTS moments_hidden_idx ON moments (hidden) WHERE hidden IS TRUE`
+await sql`CREATE INDEX IF NOT EXISTS posts_list_idx      ON posts   (pinned DESC, date DESC)`
+await sql`CREATE INDEX IF NOT EXISTS posts_category_idx  ON posts   (category)`
+await sql`CREATE INDEX IF NOT EXISTS moments_list_idx    ON moments (date DESC, time DESC)`
+await sql`CREATE INDEX IF NOT EXISTS moments_hidden_idx  ON moments (hidden) WHERE hidden IS TRUE`
+await sql`CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at DESC)`
+await sql`CREATE INDEX IF NOT EXISTS pages_slug_idx      ON pages (slug)`
 
-console.log('✅ Database migrated — posts + moments + settings ready, indexes in place.')
+console.log('✅ Database migrated — posts + moments + settings + pages + messages ready, indexes in place.')
 process.exit(0)

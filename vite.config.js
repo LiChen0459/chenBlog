@@ -76,6 +76,10 @@ export default defineConfig(({ mode }) => {
             })
           },
         },
+        // Feeds are served by the API server at the site root, same as production.
+        '/rss.xml': { target: API_TARGET, changeOrigin: true },
+        '/atom.xml': { target: API_TARGET, changeOrigin: true },
+        '/sitemap.xml': { target: API_TARGET, changeOrigin: true },
       },
     },
   }

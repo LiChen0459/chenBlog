@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseList, fmtDate, today, normaliseLimit, normaliseOffset } from '../utils.js'
+import { parseList, fmtDate, today, normaliseLimit, normaliseOffset, buildTaxonomy } from '../utils.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', '..', 'data')
@@ -38,6 +38,7 @@ function parse(post, withContent = true) {
     title: post.title || '无标题',
     date: fmtDate(post.date),
     summary: post.summary || '',
+    category: post.category || '',
     tags: parseList(post.tags),
     pinned: !!post.pinned,
   }
@@ -53,17 +54,59 @@ function sortPosts(a, b) {
 
 export const filePostsRepo = {
   /** `withContent` defaults to true — see the note in vercel/posts.js. */
-  async getAll({ limit, offset = 0, withContent = true } = {}) {
+  async getAll({ limit, offset = 0, withContent = true, category, tag, year } = {}) {
     const lim = normaliseLimit(limit, null, 200)
     const off = normaliseOffset(offset)
-    const posts = (await readAll()).map(p => parse(p, withContent)).sort(sortPosts)
+    let posts = (await readAll()).map(p => parse(p, withContent)).sort(sortPosts)
+    if (category) posts = posts.filter(p => p.category === category)
+    if (tag) posts = posts.filter(p => (p.tags || []).includes(tag))
+    if (year) posts = posts.filter(p => String(p.date).startsWith(String(year)))
     if (lim) return posts.slice(off, off + lim)
     return off ? posts.slice(off) : posts
   },
 
-  /** Total number of posts — used for pagination metadata. */
-  async count() {
-    return (await readAll()).length
+  /** Total number of posts (honouring the same filters as getAll) — used for pagination metadata. */
+  async count({ category, tag, year } = {}) {
+    let posts = await readAll()
+    if (category) posts = posts.filter(p => String(p.category || '') === category)
+    if (tag) posts = posts.filter(p => parseList(p.tags).includes(tag))
+    if (year) posts = posts.filter(p => String(p.date || '').startsWith(String(year)))
+    return posts.length
+  },
+
+  /**
+   * Naive-but-good-enough full-text search (the blog has tens of posts, not
+   * millions): case-insensitive substring match over title / summary / body /
+   * tags / category, scored so title hits rank first.
+   */
+  async search(q, { limit = 20 } = {}) {
+    const needle = String(q || '').trim().toLowerCase()
+    if (!needle) return []
+    const lim = normaliseLimit(limit, 20, 100)
+    const scored = []
+    for (const raw of await readAll()) {
+      const p = parse(raw, true)
+      const hay = {
+        title: p.title.toLowerCase(),
+        summary: p.summary.toLowerCase(),
+        content: p.content.toLowerCase(),
+        tags: (p.tags || []).join(' ').toLowerCase(),
+        category: p.category.toLowerCase(),
+      }
+      let score = 0
+      if (hay.title.includes(needle)) score += 10
+      if (hay.tags.includes(needle) || hay.category.includes(needle)) score += 5
+      if (hay.summary.includes(needle)) score += 3
+      if (hay.content.includes(needle)) score += 1
+      if (score) scored.push({ post: p, score })
+    }
+    scored.sort((a, b) => b.score - a.score || String(b.post.date).localeCompare(String(a.post.date)))
+    return scored.slice(0, lim).map((s) => s.post)
+  },
+
+  /** Category tree + tag cloud with counts. */
+  async taxonomy() {
+    return buildTaxonomy(await readAll())
   },
 
   async getById(id) {
@@ -79,6 +122,7 @@ export const filePostsRepo = {
       title: data.title || '无标题',
       date: data.date || today(),
       summary: data.summary || '',
+      category: data.category || '',
       content: data.content || '',
       tags: parseList(data.tags),
       pinned: !!data.pinned,
@@ -99,6 +143,7 @@ export const filePostsRepo = {
       title: data.title ?? current.title,
       date: data.date ?? current.date,
       summary: data.summary ?? current.summary,
+      category: data.category ?? current.category ?? '',
       content: data.content ?? current.content,
       tags: data.tags !== undefined ? parseList(data.tags) : parseList(current.tags),
       pinned: data.pinned !== undefined ? !!data.pinned : !!current.pinned,

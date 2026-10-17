@@ -3,6 +3,9 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/rss.xml", "destination": "/api/index" },
+    { "source": "/atom.xml", "destination": "/api/index" },
+    { "source": "/sitemap.xml", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

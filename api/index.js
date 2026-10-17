@@ -1,4 +1,5 @@
-import { getPostsRepo, getMomentsRepo, getImagesRepo, getSettingsRepo } from '../server/repositories/index.js'
+import { getPostsRepo, getMomentsRepo, getImagesRepo, getSettingsRepo, getPagesRepo, getMessagesRepo } from '../server/repositories/index.js'
+import { feedApp } from '../server/routes/feeds.js'
 import {
   today,
   validateImage,
@@ -11,7 +12,14 @@ import {
   normaliseLimit,
   normaliseOffset,
   normaliseIds,
+  MAX_NICKNAME_LEN,
+  MAX_MESSAGE_LEN,
 } from '../server/repositories/utils.js'
+
+// Feeds (/rss.xml, /atom.xml, /sitemap.xml) are served by the same Hono router
+// the local node server uses — see server/routes/feeds.js.
+const feeds = feedApp()
+const FEED_PATHS = new Set(['/rss.xml', '/atom.xml', '/sitemap.xml'])
 
 const MAX_BODY_BYTES = 32 * 1024 * 1024 // 32 MB across all files
 
@@ -41,6 +49,14 @@ function checkAuth(req) {
   const token = process.env.ADMIN_TOKEN
   if (!token) return false
   return safeEqualString(req.headers.authorization, `Bearer ${token}`)
+}
+
+/** Forward a Hono Response to the Node res object (used by the feed router). */
+async function writeResponse(res, upstream) {
+  const body = await upstream.text()
+  res.statusCode = upstream.status
+  upstream.headers.forEach((value, key) => res.setHeader(key, value))
+  res.end(body)
 }
 
 /** Admin, or a visitor holding a scoped unlock token. */
@@ -163,18 +179,36 @@ export default async function handler(req, res) {
       return json(res, { ok: false, error: 'Method not allowed' }, 405)
     }
 
-    // Backup: all posts + moments in one call
+    // Backup: all posts + moments + pages + messages in one call
     if (p === '/api/backup' && m === 'GET') {
       if (!checkAuth(req)) return unauthorized(res)
-      const [pr, mr] = await Promise.all([getPostsRepo(), getMomentsRepo()])
-      const [allPosts, allMoments] = await Promise.all([
+      const [pr, mr, pgr, msr] = await Promise.all([
+        getPostsRepo(), getMomentsRepo(), getPagesRepo(), getMessagesRepo(),
+      ])
+      const [allPosts, allMoments, allPages, allMessages] = await Promise.all([
         pr.getAll({}),
         mr.getAll({ includeHidden: true }),
+        pgr.getAll(),
+        msr.getAll({ includeHidden: true }),
       ])
       return json(res, {
         ok: true,
-        data: { exported_at: new Date().toISOString(), posts: allPosts, moments: allMoments },
+        data: {
+          exported_at: new Date().toISOString(),
+          posts: allPosts,
+          moments: allMoments,
+          pages: allPages,
+          messages: allMessages,
+        },
       })
+    }
+
+    /* ── Feeds at the site root ── */
+    if (FEED_PATHS.has(p) && m === 'GET') {
+      // Rebuild an absolute URL with the real host so the feed's links are correct.
+      const proto = req.headers['x-forwarded-proto'] || 'https'
+      const host = req.headers.host || 'localhost'
+      return writeResponse(res, await feeds.fetch(new Request(`${proto}://${host}${p}`, { headers: req.headers })))
     }
 
     /* ── Posts ── */
@@ -187,10 +221,16 @@ export default async function handler(req, res) {
         ? (Math.max(1, Number(pageParam) || 1) - 1) * perPage
         : normaliseOffset(u.searchParams.get('offset'))
 
+      const filters = {
+        category: u.searchParams.get('category') || undefined,
+        tag: u.searchParams.get('tag') || undefined,
+        year: u.searchParams.get('year') || undefined,
+      }
+
       // Lean projection — list views never need the full markdown body.
       const [posts, total] = await Promise.all([
-        postsRepo.getAll({ limit: perPage, offset, withContent: false }),
-        typeof postsRepo.count === 'function' ? postsRepo.count() : Promise.resolve(null),
+        postsRepo.getAll({ limit: perPage, offset, withContent: false, ...filters }),
+        typeof postsRepo.count === 'function' ? postsRepo.count(filters) : Promise.resolve(null),
       ])
 
       const totalCount = total ?? posts.length
@@ -204,6 +244,24 @@ export default async function handler(req, res) {
       })
     }
 
+    // Full-text search over title / summary / body — mirrors routes/posts.js.
+    if (p === '/api/posts/search' && m === 'GET') {
+      const q = (u.searchParams.get('q') || '').trim()
+      if (!q) return json(res, { ok: false, error: '请输入搜索关键词' }, 400)
+      const posts = await postsRepo.search(q, {
+        limit: normaliseLimit(u.searchParams.get('limit'), 20, 50),
+      })
+      return json(res, { ok: true, data: posts, total: posts.length })
+    }
+
+    // Category tree + tag cloud with counts — mirrors routes/posts.js.
+    if (p === '/api/posts/taxonomy' && m === 'GET') {
+      const taxonomy = typeof postsRepo.taxonomy === 'function'
+        ? await postsRepo.taxonomy()
+        : { categories: [], tags: [] }
+      return json(res, { ok: true, data: taxonomy })
+    }
+
     if (p === '/api/posts' && m === 'POST') {
       if (!checkAuth(req)) return unauthorized(res)
       const b = await readBody(req)
@@ -211,6 +269,7 @@ export default async function handler(req, res) {
         title: b.title || '无标题',
         date: b.date || today(),
         summary: b.summary || '',
+        category: b.category || '',
         content: b.content || '',
         tags: b.tags || [],
         pinned: !!b.pinned,
@@ -375,6 +434,112 @@ export default async function handler(req, res) {
         if (!checkAuth(req)) return unauthorized(res)
         const r = await momentsRepo.delete(id)
         if (!r) return json(res, { ok: false, error: '动态不存在' }, 404)
+        return json(res, { ok: true, data: r })
+      }
+    }
+
+    /* ── Pages (standalone content: 关于我 / 友情链接 / …) ── */
+    const pagesRepo = await getPagesRepo()
+
+    if (p === '/api/pages' && m === 'GET') {
+      const pages = await pagesRepo.getAll()
+      return json(res, { ok: true, data: pages, total: pages.length })
+    }
+
+    if (p === '/api/pages' && m === 'POST') {
+      if (!checkAuth(req)) return unauthorized(res)
+      const b = await readBody(req)
+      try {
+        const page = await pagesRepo.create({ slug: b.slug, title: b.title, content: b.content })
+        return json(res, { ok: true, data: page }, 201)
+      } catch (e) {
+        return json(res, { ok: false, error: e.message }, 400)
+      }
+    }
+
+    const pageMatch = p.match(/^\/api\/pages\/([a-z0-9][a-z0-9-]{0,63})$/)
+    if (pageMatch) {
+      const slug = pageMatch[1]
+      if (m === 'GET') {
+        const page = await pagesRepo.getBySlug(slug)
+        if (!page) return json(res, { ok: false, error: '页面不存在' }, 404)
+        return json(res, { ok: true, data: page })
+      }
+      if (m === 'PUT') {
+        if (!checkAuth(req)) return unauthorized(res)
+        const b = await readBody(req)
+        try {
+          const page = await pagesRepo.update(slug, b)
+          if (!page) return json(res, { ok: false, error: '页面不存在' }, 404)
+          return json(res, { ok: true, data: page })
+        } catch (e) {
+          return json(res, { ok: false, error: e.message }, 400)
+        }
+      }
+      if (m === 'DELETE') {
+        if (!checkAuth(req)) return unauthorized(res)
+        const r = await pagesRepo.delete(slug)
+        if (!r) return json(res, { ok: false, error: '页面不存在' }, 404)
+        return json(res, { ok: true, data: r })
+      }
+    }
+
+    /* ── Guestbook messages ── */
+    const messagesRepo = await getMessagesRepo()
+
+    if (p === '/api/messages' && m === 'GET') {
+      const includeHidden = checkAuth(req)
+      const limit = normaliseLimit(u.searchParams.get('limit'), 50, 200)
+      const offset = normaliseOffset(u.searchParams.get('offset'))
+      const [messages, total] = await Promise.all([
+        messagesRepo.getAll({ limit, offset, includeHidden }),
+        typeof messagesRepo.count === 'function' ? messagesRepo.count({ includeHidden }) : Promise.resolve(null),
+      ])
+      const totalCount = total ?? messages.length
+      return json(res, {
+        ok: true,
+        data: messages,
+        total: totalCount,
+        limit,
+        offset,
+        hasMore: limit ? offset + messages.length < totalCount : false,
+      })
+    }
+
+    // Public: the guestbook form. No auth by design — spam is contained with
+    // length caps plus a honeypot field the frontend renders invisibly.
+    if (p === '/api/messages' && m === 'POST') {
+      const b = await readBody(req)
+      if (typeof b.website === 'string' && b.website.trim()) {
+        return json(res, { ok: true, data: null }, 201) // bot filled the honeypot
+      }
+      const nickname = String(b.nickname ?? '').trim()
+      const content = String(b.content ?? '').trim()
+      if (!content) return json(res, { ok: false, error: '留言内容不能为空' }, 400)
+      if (content.length > MAX_MESSAGE_LEN) {
+        return json(res, { ok: false, error: `留言最长 ${MAX_MESSAGE_LEN} 字` }, 400)
+      }
+      if (nickname.length > MAX_NICKNAME_LEN) {
+        return json(res, { ok: false, error: `昵称最长 ${MAX_NICKNAME_LEN} 个字符` }, 400)
+      }
+      const message = await messagesRepo.create({ nickname: nickname || '匿名', content })
+      return json(res, { ok: true, data: message }, 201)
+    }
+
+    const msgMatch = p.match(/^\/api\/messages\/(\d+)$/)
+    if (msgMatch) {
+      const id = Number(msgMatch[1])
+      if (m === 'PATCH') {
+        if (!checkAuth(req)) return unauthorized(res)
+        const b = await readBody(req)
+        const r = await messagesRepo.setHidden(id, !!b.hidden)
+        if (!r) return json(res, { ok: false, error: '留言不存在' }, 404)
+        return json(res, { ok: true, data: r })
+      }
+      if (m === 'DELETE') {
+        if (!checkAuth(req)) return unauthorized(res)
+        const r = await messagesRepo.delete(id)
+        if (!r) return json(res, { ok: false, error: '留言不存在' }, 404)
         return json(res, { ok: true, data: r })
       }
     }

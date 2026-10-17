@@ -12,6 +12,7 @@ function parseId(raw) {
 }
 
 // GET /api/posts?limit=N&offset=N  (or ?page=N as a shorthand for offset)
+//   Optional filters (combined with AND): category=技术/前端, tag=vue, year=2025
 //
 // Returns the LEAN projection (no `content`) because every caller of this
 // endpoint renders a list. Full bodies come from GET /api/posts/:id.
@@ -24,9 +25,15 @@ postsRoutes.get('/', async (c) => {
     ? (Math.max(1, Number(pageParam) || 1) - 1) * perPage
     : normaliseOffset(c.req.query('offset'))
 
+  const filters = {
+    category: c.req.query('category') || undefined,
+    tag: c.req.query('tag') || undefined,
+    year: c.req.query('year') || undefined,
+  }
+
   const [posts, total] = await Promise.all([
-    repo.getAll({ limit: perPage, offset, withContent: false }),
-    typeof repo.count === 'function' ? repo.count() : Promise.resolve(null),
+    repo.getAll({ limit: perPage, offset, withContent: false, ...filters }),
+    typeof repo.count === 'function' ? repo.count(filters) : Promise.resolve(null),
   ])
 
   const totalCount = total ?? posts.length
@@ -38,6 +45,30 @@ postsRoutes.get('/', async (c) => {
     offset,
     hasMore: perPage ? offset + posts.length < totalCount : false,
   })
+})
+
+// GET /api/posts/search?q=keyword
+// Full-text search over title / summary / body. Declared before `/:id` so the
+// literal segment is never parsed as an id.
+postsRoutes.get('/search', async (c) => {
+  const q = (c.req.query('q') || '').trim()
+  if (!q) {
+    return c.json({ ok: false, error: '请输入搜索关键词', code: 'VALIDATION' }, 400)
+  }
+  const repo = await getPostsRepo()
+  const posts = await repo.search(q, { limit: normaliseLimit(c.req.query('limit'), 20, 50) })
+  return c.json({ ok: true, data: posts, total: posts.length })
+})
+
+// GET /api/posts/taxonomy
+// Category tree (slash-separated hierarchy) + tag cloud, both with counts.
+// Also declared before `/:id`.
+postsRoutes.get('/taxonomy', async (c) => {
+  const repo = await getPostsRepo()
+  const taxonomy = typeof repo.taxonomy === 'function'
+    ? await repo.taxonomy()
+    : { categories: [], tags: [] }
+  return c.json({ ok: true, data: taxonomy })
 })
 
 // GET /api/posts/:id
@@ -60,6 +91,7 @@ postsRoutes.post('/', requireAdmin, async (c) => {
       title: body.title || '无标题',
       date: body.date || today(),
       summary: body.summary || '',
+      category: body.category || '',
       content: body.content || '',
       tags: body.tags || [],
       pinned: !!body.pinned,

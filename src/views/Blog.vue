@@ -40,6 +40,12 @@
         <router-link :to="`/blog/${post.id}`">
           <div class="card-meta">
             <time>{{ post.date }}</time>
+            <router-link
+              v-if="post.category"
+              class="card-category"
+              :to="`/category/${post.category.split('/').map(encodeURIComponent).join('/')}`"
+              @click.stop
+            >{{ post.category }}</router-link>
           </div>
           <h3>{{ post.title }}</h3>
           <p>{{ post.summary }}</p>
