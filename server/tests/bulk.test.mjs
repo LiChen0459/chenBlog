@@ -158,6 +158,12 @@ try {
   posts = await allPosts()
   check('both posts are gone', ![p1, p2].some(id => posts.some(p => p.id === id)))
 
+  // ---- non-integer ids must never reach the DB as NaN (regression) ----
+  r = await req('/api/posts/NaN')
+  check('GET /api/posts/NaN → 404 (not 500)', r.status === 404, JSON.stringify(r.body))
+  r = await req('/api/posts/abc')
+  check('GET /api/posts/abc → 404 (not 500)', r.status === 404, JSON.stringify(r.body))
+
   console.log('\n── Vercel entry (api/index.js) ──')
   const { default: handler } = await import('../../api/index.js')
   const { EventEmitter } = await import('node:events')
@@ -214,6 +220,11 @@ try {
   check('entry: pin 1 → updated 1', r.status === 200 && r.body.data.updated === 1, JSON.stringify(r.body))
   r = await call('POST', '/api/posts/bulk', { headers: entryAuth, body: { ids: [vp1], action: 'delete' } })
   check('entry: delete 1 post → deleted 1', r.status === 200 && r.body.data.deleted === 1, JSON.stringify(r.body))
+
+  r = await call('GET', '/api/posts/NaN')
+  check('entry: GET /api/posts/NaN → 404 (not 500)', r.status === 404, JSON.stringify(r.body))
+  r = await call('GET', '/api/posts/abc')
+  check('entry: GET /api/posts/abc → 404 (not 500)', r.status === 404, JSON.stringify(r.body))
 } catch (e) {
   fail++
   console.log('  ❌ threw:', e.stack)

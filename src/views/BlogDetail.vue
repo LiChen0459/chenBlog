@@ -180,9 +180,20 @@ function onScroll() {
   })
 }
 
+function postId() {
+  const n = Number(route.params.id)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
 async function loadPost() {
+  const id = postId()
+  if (id === null) {
+    post.value = null
+    loading.value = false
+    outline.value = []
+    return
+  }
   loading.value = true
-  const id = Number(route.params.id)
   try {
     post.value = await getPost(id)
   } catch {
@@ -221,7 +232,11 @@ onActivated(() => {
   onScroll()
 })
 onDeactivated(() => { removeScrollListeners() })
-watch(() => route.params.id, () => { loadPost() })
+watch(() => route.params.id, () => {
+  // Leaving the detail route (:id gone) must NOT fetch — under <keep-alive> this
+  // watcher still fires and used to send GET /api/posts/NaN → Neon 500.
+  if (postId() !== null) loadPost()
+})
 onBeforeUnmount(() => {
   removeScrollListeners()
   document.title = "Chen's Blog — 记录技术思考，分享生活碎片"

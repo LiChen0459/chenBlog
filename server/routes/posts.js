@@ -5,6 +5,12 @@ import { today, normaliseLimit, normaliseOffset, normaliseIds } from '../reposit
 
 export const postsRoutes = new Hono()
 
+/** Only positive integers are valid post ids; anything else → null (yields a clean 404, never a DB 500). */
+function parseId(raw) {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
 // GET /api/posts?limit=N&offset=N  (or ?page=N as a shorthand for offset)
 //
 // Returns the LEAN projection (no `content`) because every caller of this
@@ -36,7 +42,8 @@ postsRoutes.get('/', async (c) => {
 
 // GET /api/posts/:id
 postsRoutes.get('/:id', async (c) => {
-  const id = Number(c.req.param('id'))
+  const id = parseId(c.req.param('id'))
+  if (id === null) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
   const repo = await getPostsRepo()
   const post = await repo.getById(id)
   if (!post) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
@@ -66,7 +73,8 @@ postsRoutes.post('/', requireAdmin, async (c) => {
 
 // PUT /api/posts/:id (admin)
 postsRoutes.put('/:id', requireAdmin, async (c) => {
-  const id = Number(c.req.param('id'))
+  const id = parseId(c.req.param('id'))
+  if (id === null) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
   let body
   try { body = await c.req.json() } catch { body = {} }
   const repo = await getPostsRepo()
@@ -77,7 +85,8 @@ postsRoutes.put('/:id', requireAdmin, async (c) => {
 
 // PATCH /api/posts/:id/pin (admin) — toggle the pinned flag
 postsRoutes.patch('/:id/pin', requireAdmin, async (c) => {
-  const id = Number(c.req.param('id'))
+  const id = parseId(c.req.param('id'))
+  if (id === null) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
   const repo = await getPostsRepo()
   if (typeof repo.togglePin !== 'function') {
     return c.json({ ok: false, error: 'Pin is not supported by this storage backend', code: 'NOT_IMPLEMENTED' }, 501)
@@ -89,7 +98,8 @@ postsRoutes.patch('/:id/pin', requireAdmin, async (c) => {
 
 // DELETE /api/posts/:id (admin)
 postsRoutes.delete('/:id', requireAdmin, async (c) => {
-  const id = Number(c.req.param('id'))
+  const id = parseId(c.req.param('id'))
+  if (id === null) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
   const repo = await getPostsRepo()
   const result = await repo.delete(id)
   if (!result) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
