@@ -33,7 +33,9 @@ const routes = [
 export default createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to, from, savedPosition) {
+    // Browser back/forward (popstate): restore where the user actually was.
+    if (savedPosition) return savedPosition
     return { top: 0 }
   },
 })

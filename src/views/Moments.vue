@@ -120,7 +120,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted, onActivated } from 'vue'
 import Icon from '../components/Icon.vue'
 import MomentGallery from '../components/MomentGallery.vue'
 import Lightbox from '../components/Lightbox.vue'
@@ -225,5 +225,9 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onActivated(() => {
+  document.title = "动态 — Chen's Blog"
 })
 </script>

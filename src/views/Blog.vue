@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import Icon from '../components/Icon.vue'
 import { getPosts } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
@@ -134,5 +134,8 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+onActivated(() => {
+  document.title = "文章 — Chen's Blog"
 })
 </script>

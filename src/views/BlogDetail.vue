@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, onActivated, onDeactivated, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import { getPost } from '../api/posts.js'
@@ -201,15 +201,29 @@ async function loadPost() {
   }
 }
 
-onMounted(() => {
-  loadPost()
+function addScrollListeners() {
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onScroll)
-})
-watch(() => route.params.id, () => { loadPost() })
-onBeforeUnmount(() => {
+}
+function removeScrollListeners() {
   window.removeEventListener('scroll', onScroll)
   window.removeEventListener('resize', onScroll)
+}
+
+onMounted(() => {
+  loadPost()
+  addScrollListeners()
+})
+onActivated(() => {
+  // Returning to a cached detail page: restore its title, listeners and highlight.
+  addScrollListeners()
+  if (post.value) document.title = post.value.title + " — Chen's Blog"
+  onScroll()
+})
+onDeactivated(() => { removeScrollListeners() })
+watch(() => route.params.id, () => { loadPost() })
+onBeforeUnmount(() => {
+  removeScrollListeners()
   document.title = "Chen's Blog — 记录技术思考，分享生活碎片"
 })
 </script>

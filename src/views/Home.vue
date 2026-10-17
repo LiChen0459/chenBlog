@@ -129,6 +129,7 @@ function openLightbox(index, moment) {
 }
 
 onMounted(async () => {
+  document.title = "Chen's Blog — 记录技术思考，分享生活碎片"
   try {
     const [p, m] = await Promise.all([
       getPosts({ limit: 3 }).then((r) => r.items).catch(() => blogPosts.slice(0, 3)),

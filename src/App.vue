@@ -47,7 +47,9 @@
       <div class="content-inner" :class="{ 'is-detail': isDetail }">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
-            <component :is="Component" />
+            <keep-alive include="Blog,Moments,BlogDetail">
+              <component :is="Component" />
+            </keep-alive>
           </transition>
         </router-view>
       </div>
