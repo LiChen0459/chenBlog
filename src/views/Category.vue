@@ -54,6 +54,7 @@ import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import PostCards from '../components/PostCards.vue'
 import { getPosts, getTaxonomy } from '../api/posts.js'
+import { setSeo } from '../utils/seo.js'
 
 const route = useRoute()
 const posts = ref([])
@@ -100,8 +101,19 @@ async function load() {
 }
 
 watch(path, load)
-onMounted(load)
+onMounted(() => {
+  setSeo({
+    title: `分类：${leafName.value || '全部'}`,
+    description: `分类「${path.value || '全部'}」下的全部文章。`,
+    path: path.value ? `/category/${path.value.split('/').map(encodeURIComponent).join('/')}` : '/category',
+  })
+  load()
+})
 onActivated(() => {
-  document.title = `${leafName.value || '分类'} — Chen's Blog`
+  setSeo({
+    title: `分类：${leafName.value || '全部'}`,
+    description: `分类「${path.value || '全部'}」下的全部文章。`,
+    path: path.value ? `/category/${path.value.split('/').map(encodeURIComponent).join('/')}` : '/category',
+  })
 })
 </script>

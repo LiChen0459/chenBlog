@@ -39,6 +39,7 @@ import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import PostCards from '../components/PostCards.vue'
 import { getPosts } from '../api/posts.js'
+import { setSeo } from '../utils/seo.js'
 
 const route = useRoute()
 const posts = ref([])
@@ -62,8 +63,11 @@ async function load() {
 }
 
 watch(name, load)
-onMounted(load)
+onMounted(() => {
+  setSeo({ title: `标签：${name.value}`, description: `标签「${name.value}」下的全部文章。`, path: `/tag/${encodeURIComponent(name.value)}` })
+  load()
+})
 onActivated(() => {
-  document.title = `${name.value} — Chen's Blog`
+  setSeo({ title: `标签：${name.value}`, description: `标签「${name.value}」下的全部文章。`, path: `/tag/${encodeURIComponent(name.value)}` })
 })
 </script>

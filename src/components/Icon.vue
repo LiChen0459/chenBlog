@@ -66,6 +66,11 @@ const ICONS = {
   refresh: '<path d="M21.5 2v6h-6M2.5 22v-6h6"/><path d="M21 11A9 9 0 0 0 6.2 5.2L2.5 9M3 13a9 9 0 0 0 14.8 5.8l3.7-3.8"/>',
   'alert-circle': '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.5v5M12 16.5h0"/>',
   search: '<circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.8 15.8 4.7 4.7"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  'share-2': '<circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.4 13.4l7.2 4.2M15.6 6.4l-7.2 4.2"/>',
+  /* Rough platform marks — reads as "weibo eye" + "chat bubbles" at 14px. */
+  weibo: '<circle cx="9.6" cy="10" r="5.2"/><circle cx="9.6" cy="10" r="1.5"/><path d="M15.6 5.6a4.4 4.4 0 0 1 3.2 4.3"/><circle cx="16.4" cy="4.6" r="1.7"/>',
+  wechat: '<path d="M9.3 4.2C5.6 4.2 2.6 6.6 2.6 9.5c0 1.6.9 3.1 2.4 4.1l-.6 2.2 2.6-1.3c.7.2 1.5.3 2.3.3 3.7 0 6.7-2.4 6.7-5.3S13 4.2 9.3 4.2z"/><circle cx="7.2" cy="8.8" r=".95"/><circle cx="11.4" cy="8.8" r=".95"/><path d="M15.9 9.9c-.4 0-.8.1-1.2.2"/><path d="M16.6 14.6c2.5-.5 4.3-2.2 4.3-4.3 0-.6-.2-1.2-.4-1.7"/>',
   rss: '<circle cx="5.6" cy="18.4" r="1.4" fill="currentColor"/><path d="M4.2 4.2A16 16 0 0 1 19.8 19.8"/><path d="M4.2 10.2a9.6 9.6 0 0 1 9.6 9.6"/>',
   folder: '<path d="M3.5 8.2A2 2 0 0 1 5.5 6.2h3.9l2 2.4h7.1a2 2 0 0 1 2 2v7.2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',

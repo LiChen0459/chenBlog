@@ -127,6 +127,7 @@ import Lightbox from '../components/Lightbox.vue'
 import { getMoments, getHiddenMomentCount, unlockMoments } from '../api/moments.js'
 import { moments as staticMoments } from '../data/posts.js'
 import { momentImages } from '../utils/moment.js'
+import { setSeo } from '../utils/seo.js'
 
 const UNLOCK_KEY = 'moments_unlock_token'
 
@@ -205,6 +206,7 @@ function relock() {
 }
 
 onMounted(async () => {
+  setSeo({ title: '动态', description: '碎片化的想法与日常，像朋友圈一样。', path: '/moments' })
   const saved = sessionStorage.getItem(UNLOCK_KEY) || ''
   try {
     const [list, count] = await Promise.all([
@@ -228,6 +230,6 @@ onMounted(async () => {
 })
 
 onActivated(() => {
-  document.title = "动态 — Chen's Blog"
+  setSeo({ title: '动态', description: '碎片化的想法与日常，像朋友圈一样。', path: '/moments' })
 })
 </script>

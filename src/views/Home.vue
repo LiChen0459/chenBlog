@@ -125,6 +125,7 @@ import { getPosts } from '../api/posts.js'
 import { getMoments } from '../api/moments.js'
 import { blogPosts, moments as staticMoments } from '../data/posts.js'
 import { momentImages } from '../utils/moment.js'
+import { setSeo } from '../utils/seo.js'
 
 const posts = ref([])
 const moments = ref([])
@@ -143,7 +144,7 @@ function openLightbox(index, moment) {
 }
 
 onMounted(async () => {
-  document.title = "Chen's Blog — 记录技术思考，分享生活碎片"
+  setSeo({ path: '/' })
   try {
     const [p, m] = await Promise.all([
       getPosts({ limit: 3 }).then((r) => r.items).catch(() => blogPosts.slice(0, 3)),

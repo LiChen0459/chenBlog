@@ -39,7 +39,10 @@
 - 📅 **归档页** — 按时间线浏览所有文章，可按年份翻页，顶部是分类树 + 标签云
 - 🔍 **全文搜索** — 站内搜索，标题/摘要/正文模糊匹配，标题命中优先，结果带关键词高亮
 - 📄 **独立页面** — 关于我 / 友情链接 等不按时间排序的静态页，地址固定 `/page/<slug>`，后台可增删改
+- 🔗 **分享** — 文章页底部分享条：复制链接 / 微博 / 微信扫码（移动端还有系统原生分享），二维码由公共 QR 服务渲染，失败时回落为直接复制链接
 - 📡 **订阅源** — RSS 2.0 与 Atom 1.0（`/rss.xml`、`/atom.xml`），以及实时生成的 `sitemap.xml`
+- 🔍 **SEO** — 每个路由独立的 title / description / canonical / Open Graph / Twitter Card，文章页附带 BlogPosting 结构化数据（JSON-LD），搜索页 `noindex`
+- 🔐 **登录人机验证** — 后台登录需先答对一道服务端签名的算术题（答案在服务端校验，带 12 小时有效期，刷新页面不用重复答）
 - 🎨 **暗色/亮色主题** — 一键切换，自动记忆
 - 🔧 **后台管理** — 文章 & 动态 & 页面的 CRUD，Markdown 编辑器，批量图片上传
 - 📱 **响应式设计** — 桌面端侧边栏 + 移动端适配
@@ -142,7 +145,7 @@ npm run dev:server:local
 npm test
 ```
 
-五组回归测试，共 187 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
+六组回归测试，共 207 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
 每个用例结束都会把 `server/data/*.json` 还原：
 
 | 文件 | 覆盖内容 |
@@ -152,6 +155,7 @@ npm test
 | `server/tests/settings-unlock.test.mjs` | 设置读写、自定义密码（scrypt 存储）、解锁令牌的签发与篡改拒绝、令牌权限边界 |
 | `server/tests/vercel-entry.test.mjs` | `api/index.js`（生产真正跑的入口）的分页、隐藏动态、解锁令牌、CORS 头 |
 | `server/tests/bulk.test.mjs` | 批量隐藏/显示/删除/置顶的权限、参数校验、未知 id 容错、去重，Hono 与 Vercel 两个入口都测 |
+| `server/tests/auth-captcha.test.mjs` | 登录人机验证：挑战题签发、无/错/伪造验证码一律 401、答对+错密码 401、答对+对密码 200、答对后可复用、解锁令牌不能冒充验证码；Hono 与 Vercel 两个入口都测 |
 
 > 用例之间会互相写 `server/data/settings.json`，所以 `npm test` 用 `&&` **串行**执行，不要改成并行。
 
@@ -209,7 +213,9 @@ chen-blog/
 │   │   ├── PageView.vue  # 独立页面（/page/:slug）
 │   │   ├── Admin.vue     # 后台管理
 │   │   └── admin/Write.vue # 文章编辑器
+│   ├── components/       # 组件（Icon / ShareBar / MomentGallery / Lightbox …）
 │   ├── api/              # 前端 API 调用
+│   ├── utils/            # 工具（markdown 渲染 / moment / seo）
 │   ├── router/           # 路由配置
 │   └── App.vue           # 根组件
 ├── server/               # Hono API 服务

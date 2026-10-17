@@ -38,6 +38,7 @@
           <div class="section-line-inner"></div>
         </div>
         <div class="detail-body" v-html="renderedContent" ref="bodyRef"></div>
+        <ShareBar :title="post.title" />
       </article>
 
       <aside class="outline" v-if="outline.length >= 2" aria-label="文章大纲">
@@ -93,9 +94,11 @@
 import { ref, computed, onMounted, onBeforeUnmount, onActivated, onDeactivated, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
+import ShareBar from '../components/ShareBar.vue'
 import { getPost } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
 import { renderMarkdown, slugify } from '../utils/markdown.js'
+import { setSeo, articleJsonLd } from '../utils/seo.js'
 
 const route = useRoute()
 const loading = ref(true)
@@ -172,15 +175,26 @@ async function loadPost() {
   }
   loading.value = false
   if (post.value) {
-    document.title = post.value.title + " — Chen's Blog"
-    document.querySelector('meta[name="description"]')?.setAttribute('content', post.value.summary || '')
-    document.querySelector('meta[property="og:title"]')?.setAttribute('content', post.value.title)
-    document.querySelector('meta[property="og:description"]')?.setAttribute('content', post.value.summary || '')
+    applySeo()
     await nextTick()
     buildOutline()
   } else {
     outline.value = []
   }
+}
+
+/** Title / description / canonical / OG tags + BlogPosting structured data. */
+function applySeo() {
+  const p = post.value
+  if (!p) return
+  const id = postId()
+  setSeo({
+    title: p.title,
+    description: p.summary || p.title,
+    path: id ? `/blog/${id}` : '/blog',
+    type: 'article',
+    jsonLd: id ? articleJsonLd(p, `/blog/${id}`) : null,
+  })
 }
 
 function addScrollListeners() {
@@ -197,9 +211,10 @@ onMounted(() => {
   addScrollListeners()
 })
 onActivated(() => {
-  // Returning to a cached detail page: restore its title, listeners and highlight.
+  // Returning to a cached detail page: restore its head tags, listeners and
+  // highlight.
   addScrollListeners()
-  if (post.value) document.title = post.value.title + " — Chen's Blog"
+  applySeo()
   onScroll()
 })
 onDeactivated(() => { removeScrollListeners() })
@@ -210,6 +225,6 @@ watch(() => route.params.id, () => {
 })
 onBeforeUnmount(() => {
   removeScrollListeners()
-  document.title = "Chen's Blog — 记录技术思考，分享生活碎片"
+  setSeo({})
 })
 </script>

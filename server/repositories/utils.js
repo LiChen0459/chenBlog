@@ -226,3 +226,71 @@ export function verifyUnlockToken(token) {
 
 export const UNLOCK_TOKEN_TTL_MS = UNLOCK_TTL_MS
 
+/* ═══════════════════════════════════════════
+   LOGIN CAPTCHA (人机验证)
+   The admin login screen shows a small arithmetic challenge. The server
+   signs the question with HMAC, so the answer is verified SERVER-side —
+   a browser-only check (the previous version) stops nothing, the endpoint
+   is still scriptable. The token is scope-bound ('captcha') and is useless
+   for reading hidden moments or anything else.
+   After a successful login the same token is reused for up to
+   CAPTCHA_TTL_MS, so refreshing /desk does not force another solve.
+   ═══════════════════════════════════════════ */
+
+const CAPTCHA_SCOPE = 'captcha'
+const CAPTCHA_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
+
+/** Sign one challenge question. Returns null when ADMIN_TOKEN is unset. */
+export function signCaptchaToken(a, b, op = '+') {
+  const secret = unlockSecret()
+  if (!secret) return null
+  const payload = Buffer.from(
+    JSON.stringify({ s: CAPTCHA_SCOPE, a, b, op, exp: Date.now() + CAPTCHA_TTL_MS })
+  ).toString('base64url')
+  const sig = createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${sig}`
+}
+
+/** Verify a submitted answer against its signed token. Constant-time on the signature. */
+export function verifyCaptchaToken(token, answer) {
+  const secret = unlockSecret()
+  if (!secret || typeof token !== 'string' || !token.includes('.')) return false
+  const [payload, sig] = token.split('.')
+  if (!payload || !sig) return false
+
+  const expected = createHmac('sha256', secret).update(payload).digest('base64url')
+  const x = Buffer.from(sig)
+  const y = Buffer.from(expected)
+  if (x.length !== y.length || !timingSafeEqual(x, y)) return false
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'))
+    if (data.s !== CAPTCHA_SCOPE) return false
+    if (typeof data.exp !== 'number' || Date.now() >= data.exp) return false
+    const n = Number(answer)
+    if (!Number.isInteger(n)) return false
+    return n === (data.op === '-' ? data.a - data.b : data.a + data.b)
+  } catch {
+    return false
+  }
+}
+
+/** One random challenge: { question, token }. Subtraction stays non-negative. */
+export function makeCaptcha() {
+  const op = Math.random() < 0.5 ? '+' : '-'
+  let a = 1 + Math.floor(Math.random() * 9)
+  let b = 1 + Math.floor(Math.random() * 9)
+  if (op === '-' && b > a) { const t = a; a = b; b = t }
+  return { question: `${a} ${op} ${b} = ?`, token: signCaptchaToken(a, b, op) }
+}
+
+/** Hono flavour — reads the captcha headers off the request context. */
+export function captchaOk(c) {
+  return verifyCaptchaToken(c.req.header('X-Captcha-Token'), c.req.header('X-Captcha-Answer'))
+}
+
+/** Plain (req, res) flavour used by the Vercel serverless entry. */
+export function captchaOkHeaders(headers) {
+  return verifyCaptchaToken(headers['x-captcha-token'], headers['x-captcha-answer'])
+}
+

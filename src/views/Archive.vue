@@ -101,6 +101,7 @@ import { computed, ref, onMounted, onActivated } from 'vue'
 import Icon from '../components/Icon.vue'
 import { getPosts, getTaxonomy } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
+import { setSeo } from '../utils/seo.js'
 
 const posts = ref([])
 const taxonomy = ref({ categories: [], tags: [] })
@@ -163,8 +164,11 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  setSeo({ title: '归档', description: '按时间线浏览全部文章，附分类树与标签云。', path: '/archive' })
+  load()
+})
 onActivated(() => {
-  document.title = "归档 — Chen's Blog"
+  setSeo({ title: '归档', description: '按时间线浏览全部文章，附分类树与标签云。', path: '/archive' })
 })
 </script>

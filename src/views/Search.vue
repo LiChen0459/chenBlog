@@ -75,6 +75,7 @@ import { ref, onMounted, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import { searchPosts, getTaxonomy } from '../api/posts.js'
+import { setSeo } from '../utils/seo.js'
 
 const route = useRoute()
 const query = ref('')
@@ -162,6 +163,7 @@ function clearSearch() {
 }
 
 onMounted(async () => {
+  setSeo({ title: '搜索', description: '站内全文搜索。', path: '/search', noindex: true })
   const q = route.query.q
   if (q) {
     query.value = String(q)
@@ -173,6 +175,6 @@ onMounted(async () => {
 })
 
 onActivated(() => {
-  document.title = "搜索 — Chen's Blog"
+  setSeo({ title: '搜索', description: '站内全文搜索。', path: '/search', noindex: true })
 })
 </script>

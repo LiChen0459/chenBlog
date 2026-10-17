@@ -7,6 +7,7 @@ import { uploadRoutes } from './routes/upload.js'
 import { settingsRoutes } from './routes/settings.js'
 import { pagesRoutes } from './routes/pages.js'
 import { getPostsRepo, getMomentsRepo, getPagesRepo } from './repositories/index.js'
+import { makeCaptcha, captchaOk } from './repositories/utils.js'
 import { requireAdmin } from './middleware/auth.js'
 
 export function createApp() {
@@ -18,8 +19,23 @@ export function createApp() {
   // Health
   app.get('/health', (c) => c.json({ ok: true, time: new Date().toISOString() }))
 
-  // Verify the admin token — used by the /desk login screen.
-  app.get('/auth', requireAdmin, (c) => c.json({ ok: true }))
+  // Verify the admin token — used by the /desk login screen. Gated by a
+  // server-signed captcha: the answer is checked here, not in the browser.
+  app.get('/auth', (c) => {
+    if (!captchaOk(c)) {
+      return c.json({ ok: false, error: '人机验证未通过，请重新输入', code: 'CAPTCHA_INVALID' }, 401)
+    }
+    return requireAdmin(c, () => c.json({ ok: true }))
+  })
+
+  // Public: mint a captcha challenge for the login screen.
+  app.get('/auth/challenge', (c) => {
+    const cap = makeCaptcha()
+    if (!cap.token) {
+      return c.json({ ok: false, error: 'ADMIN_TOKEN not configured', code: 'SERVER_ERROR' }, 500)
+    }
+    return c.json({ ok: true, data: cap })
+  })
 
   // Backup: every post + moment + page in one payload.
   app.get('/backup', requireAdmin, async (c) => {

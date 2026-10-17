@@ -79,6 +79,7 @@ import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import Icon from '../components/Icon.vue'
 import { getPosts } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
+import { setSeo } from '../utils/seo.js'
 
 const PAGE_SIZE = 9
 
@@ -131,6 +132,7 @@ watch(activeTag, (t) => {
 })
 
 onMounted(async () => {
+  setSeo({ title: '文章', description: '全部文章，按发布时间倒序。', path: '/blog' })
   try {
     await fetchPage(0)
   } catch {
@@ -142,6 +144,6 @@ onMounted(async () => {
   }
 })
 onActivated(() => {
-  document.title = "文章 — Chen's Blog"
+  setSeo({ title: '文章', description: '全部文章，按发布时间倒序。', path: '/blog' })
 })
 </script>

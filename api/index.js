@@ -12,6 +12,8 @@ import {
   normaliseLimit,
   normaliseOffset,
   normaliseIds,
+  makeCaptcha,
+  captchaOkHeaders,
 } from '../server/repositories/utils.js'
 
 // Feeds (/rss.xml, /atom.xml, /sitemap.xml) are served by the same Hono router
@@ -138,8 +140,21 @@ export default async function handler(req, res) {
       return json(res, { ok: true, time: new Date().toISOString() })
 
     if (p === '/api/auth' && m === 'GET') {
+      // Human verification first: the answer is checked against a
+      // server-signed token, so the password cannot be brute-forced by a
+      // script that skips the browser UI.
+      if (!captchaOkHeaders(req.headers)) {
+        return json(res, { ok: false, error: '人机验证未通过，请重新输入', code: 'CAPTCHA_INVALID' }, 401)
+      }
       if (!checkAuth(req)) return json(res, { ok: false, error: '密码错误' }, 401)
       return json(res, { ok: true })
+    }
+
+    // Public: mint a captcha challenge for the login screen.
+    if (p === '/api/auth/challenge' && m === 'GET') {
+      const cap = makeCaptcha()
+      if (!cap.token) return json(res, { ok: false, error: 'ADMIN_TOKEN not configured' }, 500)
+      return json(res, { ok: true, data: cap })
     }
 
     /* ── Settings ── */

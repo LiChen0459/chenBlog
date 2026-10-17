@@ -12,7 +12,7 @@
     "start": "node --env-file-if-exists=.env server/index.js",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node server/tests/payload.test.mjs && node server/tests/features.test.mjs && node server/tests/settings-unlock.test.mjs && node server/tests/vercel-entry.test.mjs && node server/tests/bulk.test.mjs",
+    "test": "node server/tests/payload.test.mjs && node server/tests/features.test.mjs && node server/tests/settings-unlock.test.mjs && node server/tests/vercel-entry.test.mjs && node server/tests/bulk.test.mjs && node server/tests/auth-captcha.test.mjs",
     "db:migrate": "node --env-file-if-exists=.env server/db/migrate.js",
     "db:seed": "node --env-file-if-exists=.env server/db/seed.js"
   },

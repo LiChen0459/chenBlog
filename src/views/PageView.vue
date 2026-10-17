@@ -17,6 +17,7 @@
             <div class="section-line-inner"></div>
           </div>
           <div class="detail-body" v-html="rendered"></div>
+          <ShareBar :title="page.title" />
         </article>
       </div>
 
@@ -45,8 +46,10 @@
 import { computed, ref, watch, onMounted, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
+import ShareBar from '../components/ShareBar.vue'
 import { getPage, getPages } from '../api/pages.js'
 import { renderMarkdown } from '../utils/markdown.js'
+import { setSeo, textPreview } from '../utils/seo.js'
 
 const route = useRoute()
 const page = ref(null)
@@ -70,12 +73,23 @@ async function load() {
     page.value = null
   } finally {
     loading.value = false
+    if (page.value) applySeo()
   }
+}
+
+/** Standalone pages are indexable content too — give them real meta tags. */
+function applySeo() {
+  setSeo({
+    title: page.value.title,
+    description: textPreview(page.value.content),
+    path: `/page/${slug.value}`,
+    type: 'article',
+  })
 }
 
 watch(slug, load)
 onMounted(load)
 onActivated(() => {
-  if (page.value) document.title = `${page.value.title} — Chen's Blog`
+  if (page.value) applySeo()
 })
 </script>

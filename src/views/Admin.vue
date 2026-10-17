@@ -29,12 +29,14 @@
           />
         </div>
 
-        <!-- Captcha -->
-        <div class="captcha-wrap" v-if="captchaQuestion">
+        <!-- 人机验证：服务端签发题目，答案在服务端校验 -->
+        <div class="captcha-wrap">
           <span class="captcha-hint">人机验证</span>
           <div class="captcha-inner">
             <div class="captcha-box" aria-label="验证码">
-              <span class="captcha-text">{{ captchaQuestion }}</span>
+              <span v-if="captcha.question" class="captcha-text">{{ captcha.question }}</span>
+              <span v-else-if="captchaErr" class="captcha-text captcha-text--err">{{ captchaErr }}</span>
+              <span v-else class="captcha-text">加载中…</span>
               <span class="captcha-noise" aria-hidden="true"></span>
             </div>
             <button
@@ -42,7 +44,7 @@
               class="captcha-refresh"
               title="换一题"
               aria-label="换一题"
-              @click="resetCaptcha"
+              @click="loadCaptcha"
             >
               <Icon name="refresh" :size="15" />
             </button>
@@ -735,7 +737,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import Icon from '../components/Icon.vue'
-import { admin } from '../api/admin.js'
+import { admin, saveCaptcha, clearCaptcha } from '../api/admin.js'
 import { momentImages } from '../utils/moment.js'
 
 /* ── Lazy editor ──
@@ -783,49 +785,48 @@ const logging = ref(false)
 const tokenInput = ref('')
 const errMsg = ref('')
 
-/* Captcha */
-function genCaptcha() {
-  const a = Math.floor(Math.random() * 10) + 1
-  const b = Math.floor(Math.random() * 10) + 1
-  return { q: `${a} + ${b}`, a: a + b }
-}
-const captcha = ref(genCaptcha())
+/* ── Captcha (人机验证) ──
+   The question comes from GET /api/auth/challenge and is signed by the
+   server; the answer is verified server-side, so a script that skips this
+   screen gets nowhere. The solved challenge is kept for 12h so a refresh
+   does not force another solve. */
+const captcha = ref({ question: '', token: '' })
 const captchaInput = ref('')
-const captchaQuestion = ref(captcha.value.q)
+const captchaErr = ref('')
 
-function resetCaptcha() {
-  captcha.value = genCaptcha()
-  captchaQuestion.value = captcha.value.q
-  captchaInput.value = ''
+async function loadCaptcha() {
+  captchaErr.value = ''
+  try {
+    const cap = await admin.getChallenge()
+    captcha.value = { question: cap.question, token: cap.token }
+    captchaInput.value = ''
+  } catch (e) {
+    captcha.value = { question: '', token: '' }
+    captchaErr.value = e.message || '验证码加载失败'
+  }
 }
 
 async function login() {
   if (!tokenInput.value) { errMsg.value = '请输入管理密码'; return }
-  const ans = parseInt(captchaInput.value)
-  if (isNaN(ans) || ans !== captcha.value.a) {
-    errMsg.value = '验证码错误'
-    resetCaptcha()
-    return
-  }
+  if (!captchaInput.value) { errMsg.value = '请输入验证码答案'; return }
 
   logging.value = true
   errMsg.value = ''
   try {
-    const res = await fetch('/api/auth', {
-      headers: { Authorization: `Bearer ${tokenInput.value}` },
+    await admin.login(tokenInput.value, {
+      token: captcha.value.token,
+      answer: captchaInput.value,
     })
-    let json
-    try { json = await res.json() } catch { throw new Error(`服务器返回异常（HTTP ${res.status}）`) }
-    if (!json.ok) throw new Error(json.error || '密码错误')
 
     localStorage.setItem('admin_token', tokenInput.value)
+    saveCaptcha({ token: captcha.value.token, answer: captchaInput.value })
     tokenInput.value = ''
-    resetCaptcha()
+    await loadCaptcha()
     loggedIn.value = true
     await loadAll()
   } catch (e) {
     errMsg.value = e.message || '登录失败'
-    resetCaptcha()
+    await loadCaptcha()
   } finally {
     logging.value = false
   }
@@ -833,11 +834,11 @@ async function login() {
 
 function logout() {
   localStorage.removeItem('admin_token')
+  clearCaptcha()
   loggedIn.value = false
   posts.value = []
   moments.value = []
   tokenInput.value = ''
-  resetCaptcha()
 }
 
 /* ── Nav ── */
@@ -886,15 +887,17 @@ async function loadAll() {
 
 /** Verify a stored token before showing the dashboard. */
 async function bootstrap() {
-  if (!localStorage.getItem('admin_token')) { checking.value = false; return }
+  if (!localStorage.getItem('admin_token')) { checking.value = false; loadCaptcha(); return }
   try {
     await admin.verify()
     loggedIn.value = true
     await loadAll()
   } catch {
     localStorage.removeItem('admin_token')
+    clearCaptcha()
   } finally {
     checking.value = false
+    if (!loggedIn.value) loadCaptcha()
   }
 }
 onMounted(bootstrap)
@@ -1453,6 +1456,11 @@ watch(showPostForm, (v) => {
 .captcha-text {
   font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700;
   color: var(--accent); letter-spacing: 1px;
+}
+/* Challenge failed to load (API down) — readable, not accent-coloured. */
+.captcha-text--err {
+  font-family: var(--font-sans); font-size: 0.78rem; font-weight: 500;
+  color: #ff6961; letter-spacing: 0;
 }
 .captcha-noise {
   position: absolute; inset: 0;

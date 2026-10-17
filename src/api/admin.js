@@ -4,12 +4,39 @@ function token() {
   return localStorage.getItem('admin_token') || ''
 }
 
+/* Captcha (人机验证): the login screen posts a server-signed challenge
+   together with the password. After a successful login the solved challenge
+   is kept here so refreshing /desk re-verifies without another solve — it
+   expires server-side after 12h, after which the full login returns. */
+const CAPTCHA_KEY = 'admin_captcha'
+
+export function saveCaptcha(captcha) {
+  try { localStorage.setItem(CAPTCHA_KEY, JSON.stringify(captcha)) } catch { /* private mode */ }
+}
+
+export function clearCaptcha() {
+  localStorage.removeItem(CAPTCHA_KEY)
+}
+
+function captchaHeaders() {
+  try {
+    const raw = localStorage.getItem(CAPTCHA_KEY)
+    if (!raw) return {}
+    const { token: t, answer } = JSON.parse(raw) || {}
+    if (t && answer != null) return { 'X-Captcha-Token': t, 'X-Captcha-Answer': String(answer) }
+  } catch { /* corrupt entry — act as if absent */ }
+  return {}
+}
+
 async function request(path, options = {}) {
   let res
   try {
     res = await fetch(`${BASE}${path}`, {
       ...options,
-      headers: { ...options.headers, Authorization: `Bearer ${token()}` },
+      headers: {
+        Authorization: `Bearer ${token()}`,
+        ...options.headers,
+      },
     })
   } catch {
     throw new Error('网络请求失败，请检查网络或后端服务')
@@ -59,8 +86,21 @@ export async function uploadImages(files) {
 }
 
 export const admin = {
-  /** Verify the stored token against the server. */
-  verify: () => request('/api/auth'),
+  /** Verify the stored token against the server (with any reusable captcha). */
+  verify: () => request('/api/auth', { headers: captchaHeaders() }),
+
+  /** Fetch a fresh arithmetic challenge for the login screen (public). */
+  getChallenge: () => request('/api/auth/challenge'),
+
+  /** Check a typed password together with a solved captcha. Throws on 401. */
+  login: (password, captcha) =>
+    request('/api/auth', {
+      headers: {
+        Authorization: `Bearer ${password}`,
+        'X-Captcha-Token': captcha.token,
+        'X-Captcha-Answer': String(captcha.answer),
+      },
+    }),
 
   // Posts
   getPosts: () => request('/api/posts'),
