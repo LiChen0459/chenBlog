@@ -130,7 +130,6 @@ ${entries}
       url(`${origin}/blog`, null, '0.9', 'daily'),
       url(`${origin}/moments`, null, '0.8', 'daily'),
       url(`${origin}/archive`, null, '0.7'),
-      url(`${origin}/guestbook`, null, '0.6'),
       ...pages.map((p) => url(`${origin}/page/${p.slug}`, p.updated_at || null, '0.6')),
       // Top-level category nodes only — children are reachable from them.
       ...taxonomy.categories

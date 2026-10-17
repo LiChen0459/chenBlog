@@ -47,14 +47,6 @@ CREATE TABLE IF NOT EXISTS pages (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE TABLE IF NOT EXISTS messages (
-  id         SERIAL PRIMARY KEY,
-  nickname   TEXT NOT NULL DEFAULT '',
-  content    TEXT NOT NULL,
-  hidden     BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
 ```
 
 > **已有数据库升级？** 不用重建表，直接跑 `npm run db:migrate`
@@ -83,22 +75,13 @@ CREATE TABLE IF NOT EXISTS messages (
 >   updated_at TIMESTAMPTZ DEFAULT NOW()
 > );
 >
-> CREATE TABLE IF NOT EXISTS messages (
->   id         SERIAL PRIMARY KEY,
->   nickname   TEXT NOT NULL DEFAULT '',
->   content    TEXT NOT NULL,
->   hidden     BOOLEAN DEFAULT FALSE,
->   created_at TIMESTAMPTZ DEFAULT NOW()
-> );
->
 > -- 索引：文章/动态列表的排序键，数据量大时避免全表扫描 + 排序
 > CREATE INDEX IF NOT EXISTS posts_list_idx    ON posts   (pinned DESC, date DESC);
 > CREATE INDEX IF NOT EXISTS moments_list_idx  ON moments (date DESC, time DESC);
 > CREATE INDEX IF NOT EXISTS moments_hidden_idx ON moments (hidden) WHERE hidden IS TRUE;
 >
-> -- 分类筛选、留言按时间倒序、独立页面按地址查
+> -- 分类筛选、独立页面按地址查
 > CREATE INDEX IF NOT EXISTS posts_category_idx ON posts (category);
-> CREATE INDEX IF NOT EXISTS messages_created_idx ON messages (created_at DESC);
 > CREATE INDEX IF NOT EXISTS pages_slug_idx ON pages (slug);
 > ```
 
@@ -165,9 +148,8 @@ curl "$URL/api/posts/taxonomy"
 curl "$URL/api/posts?category=技术/前端"
 curl "$URL/api/posts/search?q=关键词"
 
-# 独立页面与留言板
+# 独立页面
 curl $URL/api/pages
-curl -X POST $URL/api/messages -H "Content-Type: application/json" -d '{"nickname":"访客","content":"你好"}'
 ```
 
 ---

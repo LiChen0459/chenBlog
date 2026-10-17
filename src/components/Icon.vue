@@ -67,8 +67,6 @@ const ICONS = {
   'alert-circle': '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.5v5M12 16.5h0"/>',
   search: '<circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.8 15.8 4.7 4.7"/>',
   rss: '<circle cx="5.6" cy="18.4" r="1.4" fill="currentColor"/><path d="M4.2 4.2A16 16 0 0 1 19.8 19.8"/><path d="M4.2 10.2a9.6 9.6 0 0 1 9.6 9.6"/>',
-  message: '<path d="M21 11.8a7.6 7.6 0 0 1-7.6 7.6H9.4L4 22.5l1.3-4.2A7.6 7.6 0 0 1 3.6 11.8 7.6 7.6 0 0 1 11.2 4.2h2.2A7.6 7.6 0 0 1 21 11.8z"/>',
-  send: '<path d="M21 3.5 10.4 14.1"/><path d="M21 3.5 14.1 21l-3.7-6.9L3.5 10.4z"/>',
   folder: '<path d="M3.5 8.2A2 2 0 0 1 5.5 6.2h3.9l2 2.4h7.1a2 2 0 0 1 2 2v7.2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
   archive: '<rect x="3.5" y="4" width="17" height="4.6" rx="1.6"/><path d="M5 8.6v9.9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.6"/><path d="M10 12.4h4"/>',

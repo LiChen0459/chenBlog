@@ -75,10 +75,6 @@ export function escapeLike(value) {
   return String(value).replace(/[\\%_]/g, (ch) => `\\${ch}`)
 }
 
-/** Guestbook caps — cheap but effective spam containment. */
-export const MAX_NICKNAME_LEN = 20
-export const MAX_MESSAGE_LEN = 500
-
 /**
  * Clamp a caller-supplied `limit` into a safe positive integer.
  * Returns `fallback` (null = "no limit") when absent/invalid.

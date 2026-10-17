@@ -98,11 +98,6 @@
           <Icon name="layout" :size="16" />
           <span class="sb-label">页面</span>
         </button>
-        <button :class="{ active: nav === 'messages' }" @click="nav = 'messages'">
-          <Icon name="message" :size="16" />
-          <span class="sb-label">留言</span>
-          <span v-if="messages.length" class="sb-badge">{{ messages.length }}</span>
-        </button>
         <button :class="{ active: nav === 'settings' }" @click="nav = 'settings'">
           <Icon name="sliders" :size="16" />
           <span class="sb-label">设置</span>
@@ -636,53 +631,6 @@
         </Transition>
       </div>
 
-      <!-- ═══ 留言管理 ═══ -->
-      <div v-else-if="nav === 'messages'" key="messages">
-        <h2 class="page-heading">留言管理</h2>
-
-        <div class="moment-grid" v-if="messages.length">
-          <div
-            v-for="msg in messages"
-            :key="msg.id"
-            class="moment-item"
-            :class="{ 'is-hidden': msg.hidden }"
-          >
-            <div class="moment-thumbs">
-              <div class="moment-pic placeholder gb-avatar-admin">{{ (msg.nickname || '匿')[0] }}</div>
-            </div>
-            <div class="moment-body">
-              <span class="moment-meta">
-                {{ msg.nickname || '匿名' }} · {{ msg.date }} {{ msg.time }}
-                <span v-if="msg.hidden" class="hidden-flag"><Icon name="lock" :size="10" /> 已隐藏</span>
-              </span>
-              <p>{{ msg.content }}</p>
-            </div>
-            <div class="moment-actions">
-              <button
-                class="mui-btn text"
-                :class="{ 'is-pinned': msg.hidden }"
-                :title="msg.hidden ? '取消隐藏（公开可见）' : '隐藏（前台不可见）'"
-                :disabled="isBusy(`msg-hide-${msg.id}`)"
-                @click="toggleMessageHidden(msg)"
-              >
-                <Icon v-if="isBusy(`msg-hide-${msg.id}`)" name="loader" :size="13" class="spin" />
-                <Icon v-else :name="msg.hidden ? 'unlock' : 'lock'" :size="13" />
-                {{ msg.hidden ? '显示' : '隐藏' }}
-              </button>
-              <button class="mui-btn text danger" @click="confirmDel('message', msg.id)">
-                <Icon name="trash" :size="13" />
-                删除
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="!loadingData" class="empty-state">
-          <Icon name="message" :size="26" />
-          <span>还没有留言</span>
-        </div>
-      </div>
-
       <!-- ═══ 设置 ═══ -->
       <div v-else-if="nav === 'settings'" key="settings">
         <h2 class="page-heading">设置</h2>
@@ -899,7 +847,6 @@ const nav = ref('dashboard')
 const posts = ref([])
 const moments = ref([])
 const pages = ref([])
-const messages = ref([])
 const todayCount = ref(0)
 const loadingData = ref(false)
 /** Existing category paths, offered as suggestions in the post editor. */
@@ -922,10 +869,9 @@ async function loadAll() {
   } catch (e) {
     toastMsg(e.message, 'error')
   }
-  // Pages / messages / taxonomy load independently: a failure in one must not
+  // Pages / taxonomy load independently: a failure in one must not
   // blank the whole dashboard.
   try { pages.value = await admin.getPages() || [] } catch (e) { toastMsg(`页面加载失败：${e.message}`, 'error') }
-  try { messages.value = await admin.getMessages() || [] } catch (e) { toastMsg(`留言加载失败：${e.message}`, 'error') }
   try {
     const tax = await admin.getTaxonomy()
     categoryOptions.value = tax?.categories || []
@@ -976,7 +922,7 @@ async function withBusy(key, fn) {
 /* ── Confirm ── */
 const confirmState = reactive({ show: false, msg: '', key: '', okLabel: '确认删除', onOk: () => {} })
 function confirmDel(type, id) {
-  const label = { post: '文章', moment: '动态', page: '页面', message: '留言' }[type] || '内容'
+  const label = { post: '文章', moment: '动态', page: '页面' }[type] || '内容'
   confirmState.msg = `确定要删除这条${label}吗？此操作不可撤销。`
   confirmState.key = `del-${type}-${id}`
   confirmState.okLabel = '确认删除'
@@ -986,7 +932,6 @@ function confirmDel(type, id) {
       if (type === 'post') { await admin.deletePost(id); await loadPosts() }
       else if (type === 'moment') { await admin.deleteMoment(id); await loadMoments() }
       else if (type === 'page') { await admin.deletePage(id); await loadPages() }
-      else if (type === 'message') { await admin.deleteMessage(id); await loadMessages() }
       confirmState.show = false
       toastMsg('已删除')
     } catch (e) { toastMsg(e.message, 'error') }
@@ -1356,22 +1301,6 @@ async function loadPages() {
   try { pages.value = await admin.getPages() || [] } catch (e) { toastMsg(e.message, 'error') }
 }
 
-/* ── Guestbook messages ── */
-async function loadMessages() {
-  try { messages.value = await admin.getMessages() || [] } catch (e) { toastMsg(e.message, 'error') }
-}
-
-/** Flip one message between hidden and public. */
-async function toggleMessageHidden(msg) {
-  await withBusy(`msg-hide-${msg.id}`, async () => {
-    try {
-      await admin.setMessageHidden(msg.id, !msg.hidden)
-      await loadMessages()
-      toastMsg(msg.hidden ? '已设为公开' : '已隐藏（前台不可见）')
-    } catch (e) { toastMsg(e.message, 'error') }
-  })
-}
-
 /* ── Settings: moments unlock password ── */
 const pwdState = reactive({ loading: true, custom: false, minLength: 4 })
 const pwdForm = reactive({ value: '', confirm: '' })
@@ -1603,17 +1532,6 @@ watch(showPostForm, (v) => {
   color: #fff; font-weight: 600;
   box-shadow: 0 4px 14px rgba(41, 151, 255, 0.28);
 }
-/* Unread-style count on the 留言 nav item. Pushed right, and readable on both
-   the plain sidebar surface and the active gradient background. */
-.sb-badge {
-  margin-left: auto;
-  min-width: 20px; height: 20px; padding: 0 6px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 999px;
-  background: var(--accent-dim); color: var(--accent-ink);
-  font-size: 0.68rem; font-weight: 700; font-variant-numeric: tabular-nums;
-}
-.sb-nav button.active .sb-badge { background: rgba(255, 255, 255, 0.25); color: #fff; }
 .sb-footer { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
 .sb-site-link, .sb-theme-btn, .sb-logout {
   display: flex; align-items: center; gap: 8px;
@@ -1959,13 +1877,6 @@ watch(showPostForm, (v) => {
   background: var(--bg-secondary); flex-shrink: 0;
 }
 .moment-pic.placeholder { color: var(--text-muted); }
-/* Guestbook moderation rows reuse .moment-pic, but the avatar stands in for the
-   nickname — same accent gradient as the public guestbook, with white initials. */
-.moment-pic.gb-avatar-admin {
-  background: var(--accent-gradient);
-  color: #fff; font-weight: 700; font-size: 1.1rem;
-  border: none;
-}
 .thumb-count {
   position: absolute; right: -6px; bottom: -6px;
   min-width: 20px; height: 20px; padding: 0 5px;
@@ -2044,12 +1955,11 @@ watch(showPostForm, (v) => {
   .sb-brand { padding: 0 8px 0 0; flex-shrink: 0; gap: 8px; }
   .sb-logo { width: 30px; height: 30px; font-size: 0.9rem; }
   .sb-name { display: none; }
-  /* Six sections now share the top bar — let it scroll instead of squashing
-     the labels, and let the 留言 badge sit inline with its label. */
+  /* Five sections now share the top bar — let it scroll instead of squashing
+     the labels. */
   .sb-nav { flex-direction: row; flex: 1; gap: 2px; padding: 0; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
   .sb-nav::-webkit-scrollbar { display: none; }
   .sb-nav button { padding: 8px 10px; font-size: 0.75rem; gap: 6px; flex-shrink: 0; }
-  .sb-badge { margin-left: 2px; }
   .sb-footer { flex-direction: row; padding: 0; gap: 4px; flex-shrink: 0; align-items: center; }
   .sb-site-link, .sb-logout { width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 50%; }
   .sb-site-link .sb-label, .sb-logout .sb-label, .sb-theme-btn .sb-label { display: none; }

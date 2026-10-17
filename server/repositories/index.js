@@ -3,7 +3,6 @@ import { fileMomentsRepo } from './file/moments.js'
 import { fileImagesRepo } from './file/images.js'
 import { fileSettingsRepo } from './file/settings.js'
 import { filePagesRepo } from './file/pages.js'
-import { fileMessagesRepo } from './file/messages.js'
 
 // Postgres / Vercel Blob repos are used when DATABASE_URL is present.
 // Local development can opt out of the remote database with `--local`
@@ -13,7 +12,7 @@ const useLocalData =
 
 const isProduction = !useLocalData && !!process.env.DATABASE_URL
 
-let _postsRepo, _momentsRepo, _imagesRepo, _settingsRepo, _pagesRepo, _messagesRepo
+let _postsRepo, _momentsRepo, _imagesRepo, _settingsRepo, _pagesRepo
 
 async function loadProdRepos() {
   if (!_postsRepo) {
@@ -23,21 +22,18 @@ async function loadProdRepos() {
       { vercelImagesRepo },
       { vercelSettingsRepo },
       { vercelPagesRepo },
-      { vercelMessagesRepo },
     ] = await Promise.all([
       import('./vercel/posts.js'),
       import('./vercel/moments.js'),
       import('./vercel/images.js'),
       import('./vercel/settings.js'),
       import('./vercel/pages.js'),
-      import('./vercel/messages.js'),
     ])
     _postsRepo = vercelPostsRepo
     _momentsRepo = vercelMomentsRepo
     _imagesRepo = vercelImagesRepo
     _settingsRepo = vercelSettingsRepo
     _pagesRepo = vercelPagesRepo
-    _messagesRepo = vercelMessagesRepo
   }
 }
 
@@ -84,12 +80,4 @@ export async function getPagesRepo() {
     return _pagesRepo
   }
   return filePagesRepo
-}
-
-export async function getMessagesRepo() {
-  if (isProduction) {
-    await loadProdRepos()
-    return _messagesRepo
-  }
-  return fileMessagesRepo
 }

@@ -61,7 +61,7 @@
           <!-- NOTE: no mode="out-in" here — it deadlocks with <keep-alive> and
                leaves the viewport blank when navigating back to a cached page. -->
           <transition name="page">
-            <keep-alive include="Blog,Moments,BlogDetail,Archive,Search,PageView,Guestbook,Category,Tag">
+            <keep-alive include="Blog,Moments,BlogDetail,Archive,Search,PageView,Category,Tag">
               <component :is="Component" />
             </keep-alive>
           </transition>
@@ -73,7 +73,6 @@
           <router-link to="/archive">归档</router-link>
           <router-link to="/page/about">关于</router-link>
           <router-link to="/page/friends">友链</router-link>
-          <router-link to="/guestbook">留言板</router-link>
           <a href="/rss.xml" title="RSS 订阅">RSS</a>
         </p>
       </div>

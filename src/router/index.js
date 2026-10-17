@@ -47,11 +47,6 @@ const routes = [
     component: () => import('../views/PageView.vue'),
   },
   {
-    path: '/guestbook',
-    name: 'Guestbook',
-    component: () => import('../views/Guestbook.vue'),
-  },
-  {
     path: '/desk',
     name: 'Admin',
     component: () => import('../views/Admin.vue'),

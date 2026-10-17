@@ -108,14 +108,6 @@ export const admin = {
   deletePage: (slug) =>
     request(`/api/pages/${encodeURIComponent(slug)}`, { method: 'DELETE' }),
 
-  // Guestbook
-  // Hidden messages come back automatically: `request` attaches the admin token.
-  getMessages: () => request('/api/messages?limit=200'),
-  setMessageHidden: (id, hidden) =>
-    request(`/api/messages/${id}`, { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify({ hidden }) }),
-  deleteMessage: (id) =>
-    request(`/api/messages/${id}`, { method: 'DELETE' }),
-
   // Taxonomy (categories + tags), used by the post editor's category suggestions
   getTaxonomy: () => request('/api/posts/taxonomy'),
 

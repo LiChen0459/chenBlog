@@ -18,10 +18,6 @@
           <Icon name="user" :size="14" />
           关于我
         </router-link>
-        <router-link to="/guestbook" class="hero-link">
-          <Icon name="message" :size="14" />
-          留言板
-        </router-link>
         <a href="/rss.xml" class="hero-link" title="RSS 订阅">
           <Icon name="rss" :size="14" />
           RSS

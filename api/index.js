@@ -1,4 +1,4 @@
-import { getPostsRepo, getMomentsRepo, getImagesRepo, getSettingsRepo, getPagesRepo, getMessagesRepo } from '../server/repositories/index.js'
+import { getPostsRepo, getMomentsRepo, getImagesRepo, getSettingsRepo, getPagesRepo } from '../server/repositories/index.js'
 import { feedApp } from '../server/routes/feeds.js'
 import {
   today,
@@ -12,8 +12,6 @@ import {
   normaliseLimit,
   normaliseOffset,
   normaliseIds,
-  MAX_NICKNAME_LEN,
-  MAX_MESSAGE_LEN,
 } from '../server/repositories/utils.js'
 
 // Feeds (/rss.xml, /atom.xml, /sitemap.xml) are served by the same Hono router
@@ -179,17 +177,16 @@ export default async function handler(req, res) {
       return json(res, { ok: false, error: 'Method not allowed' }, 405)
     }
 
-    // Backup: all posts + moments + pages + messages in one call
+    // Backup: all posts + moments + pages in one call
     if (p === '/api/backup' && m === 'GET') {
       if (!checkAuth(req)) return unauthorized(res)
-      const [pr, mr, pgr, msr] = await Promise.all([
-        getPostsRepo(), getMomentsRepo(), getPagesRepo(), getMessagesRepo(),
+      const [pr, mr, pgr] = await Promise.all([
+        getPostsRepo(), getMomentsRepo(), getPagesRepo(),
       ])
-      const [allPosts, allMoments, allPages, allMessages] = await Promise.all([
+      const [allPosts, allMoments, allPages] = await Promise.all([
         pr.getAll({}),
         mr.getAll({ includeHidden: true }),
         pgr.getAll(),
-        msr.getAll({ includeHidden: true }),
       ])
       return json(res, {
         ok: true,
@@ -198,7 +195,6 @@ export default async function handler(req, res) {
           posts: allPosts,
           moments: allMoments,
           pages: allPages,
-          messages: allMessages,
         },
       })
     }
@@ -480,66 +476,6 @@ export default async function handler(req, res) {
         if (!checkAuth(req)) return unauthorized(res)
         const r = await pagesRepo.delete(slug)
         if (!r) return json(res, { ok: false, error: '页面不存在' }, 404)
-        return json(res, { ok: true, data: r })
-      }
-    }
-
-    /* ── Guestbook messages ── */
-    const messagesRepo = await getMessagesRepo()
-
-    if (p === '/api/messages' && m === 'GET') {
-      const includeHidden = checkAuth(req)
-      const limit = normaliseLimit(u.searchParams.get('limit'), 50, 200)
-      const offset = normaliseOffset(u.searchParams.get('offset'))
-      const [messages, total] = await Promise.all([
-        messagesRepo.getAll({ limit, offset, includeHidden }),
-        typeof messagesRepo.count === 'function' ? messagesRepo.count({ includeHidden }) : Promise.resolve(null),
-      ])
-      const totalCount = total ?? messages.length
-      return json(res, {
-        ok: true,
-        data: messages,
-        total: totalCount,
-        limit,
-        offset,
-        hasMore: limit ? offset + messages.length < totalCount : false,
-      })
-    }
-
-    // Public: the guestbook form. No auth by design — spam is contained with
-    // length caps plus a honeypot field the frontend renders invisibly.
-    if (p === '/api/messages' && m === 'POST') {
-      const b = await readBody(req)
-      if (typeof b.website === 'string' && b.website.trim()) {
-        return json(res, { ok: true, data: null }, 201) // bot filled the honeypot
-      }
-      const nickname = String(b.nickname ?? '').trim()
-      const content = String(b.content ?? '').trim()
-      if (!content) return json(res, { ok: false, error: '留言内容不能为空' }, 400)
-      if (content.length > MAX_MESSAGE_LEN) {
-        return json(res, { ok: false, error: `留言最长 ${MAX_MESSAGE_LEN} 字` }, 400)
-      }
-      if (nickname.length > MAX_NICKNAME_LEN) {
-        return json(res, { ok: false, error: `昵称最长 ${MAX_NICKNAME_LEN} 个字符` }, 400)
-      }
-      const message = await messagesRepo.create({ nickname: nickname || '匿名', content })
-      return json(res, { ok: true, data: message }, 201)
-    }
-
-    const msgMatch = p.match(/^\/api\/messages\/(\d+)$/)
-    if (msgMatch) {
-      const id = Number(msgMatch[1])
-      if (m === 'PATCH') {
-        if (!checkAuth(req)) return unauthorized(res)
-        const b = await readBody(req)
-        const r = await messagesRepo.setHidden(id, !!b.hidden)
-        if (!r) return json(res, { ok: false, error: '留言不存在' }, 404)
-        return json(res, { ok: true, data: r })
-      }
-      if (m === 'DELETE') {
-        if (!checkAuth(req)) return unauthorized(res)
-        const r = await messagesRepo.delete(id)
-        if (!r) return json(res, { ok: false, error: '留言不存在' }, 404)
         return json(res, { ok: true, data: r })
       }
     }

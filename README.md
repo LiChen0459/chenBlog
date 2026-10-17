@@ -39,10 +39,9 @@
 - 📅 **归档页** — 按时间线浏览所有文章，可按年份翻页，顶部是分类树 + 标签云
 - 🔍 **全文搜索** — 站内搜索，标题/摘要/正文模糊匹配，标题命中优先，结果带关键词高亮
 - 📄 **独立页面** — 关于我 / 友情链接 等不按时间排序的静态页，地址固定 `/page/<slug>`，后台可增删改
-- 💬 **留言板** — 访客留言，昵称/长度上限 + 蜜罐字段防垃圾，后台可隐藏或删除
 - 📡 **订阅源** — RSS 2.0 与 Atom 1.0（`/rss.xml`、`/atom.xml`），以及实时生成的 `sitemap.xml`
 - 🎨 **暗色/亮色主题** — 一键切换，自动记忆
-- 🔧 **后台管理** — 文章 & 动态 & 页面 & 留言的 CRUD，Markdown 编辑器，批量图片上传
+- 🔧 **后台管理** — 文章 & 动态 & 页面的 CRUD，Markdown 编辑器，批量图片上传
 - 📱 **响应式设计** — 桌面端侧边栏 + 移动端适配
 - ⚡ **Vercel 部署** — 一键部署，全球 CDN 加速
 
@@ -76,7 +75,7 @@
 
 > **数据库 & 存储：** 在 Vercel Dashboard 创建 **Neon Postgres** 与 **Vercel Blob**，会自动注入 `DATABASE_URL` 和 `BLOB_READ_WRITE_TOKEN`，无需手填。
 
-> **已有数据库？** 不用重建表，跑 `npm run db:migrate` 即可增量补齐 `tags` / `pinned` / `images` / `hidden` / `category` 列，创建 `pages`、`messages` 表与查询索引（SQL 详见 [DEPLOY.md](./DEPLOY.md)）。
+> **已有数据库？** 不用重建表，跑 `npm run db:migrate` 即可增量补齐 `tags` / `pinned` / `images` / `hidden` / `category` 列，创建 `pages` 表与查询索引（SQL 详见 [DEPLOY.md](./DEPLOY.md)）。
 
 > 🔒 **隐藏动态**：后台「动态管理」里可把任意一条动态设为隐藏（或编辑时勾选「隐藏这条动态」）。
 > 隐藏后前台不再展示，只在 `/moments` 顶部显示「有 N 条隐藏动态 · 输入密码查看」。
@@ -143,13 +142,13 @@ npm run dev:server:local
 npm test
 ```
 
-五组回归测试，共 212 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
+五组回归测试，共 187 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
 每个用例结束都会把 `server/data/*.json` 还原：
 
 | 文件 | 覆盖内容 |
 | --- | --- |
 | `server/tests/payload.test.mjs` | 列表接口的精简投影、`LIMIT`/`OFFSET` 分页、`?page=` 别名、limit 上限、`/api/backup` 仍带正文 |
-| `server/tests/features.test.mjs` | 分类/标签/年份筛选、全文搜索与排序、分类树、独立页面 CRUD（含地址规范化与占用检查）、留言板的长度上限/蜜罐/隐藏删除、RSS/Atom/sitemap 的绝对链接与 XML 转义；Hono 与 Vercel 两个入口都测 |
+| `server/tests/features.test.mjs` | 分类/标签/年份筛选、全文搜索与排序、分类树、独立页面 CRUD（含地址规范化与占用检查）、RSS/Atom/sitemap 的绝对链接与 XML 转义；Hono 与 Vercel 两个入口都测 |
 | `server/tests/settings-unlock.test.mjs` | 设置读写、自定义密码（scrypt 存储）、解锁令牌的签发与篡改拒绝、令牌权限边界 |
 | `server/tests/vercel-entry.test.mjs` | `api/index.js`（生产真正跑的入口）的分页、隐藏动态、解锁令牌、CORS 头 |
 | `server/tests/bulk.test.mjs` | 批量隐藏/显示/删除/置顶的权限、参数校验、未知 id 容错、去重，Hono 与 Vercel 两个入口都测 |
@@ -208,14 +207,13 @@ chen-blog/
 │   │   ├── Tag.vue       # 标签视图
 │   │   ├── Search.vue    # 全文搜索
 │   │   ├── PageView.vue  # 独立页面（/page/:slug）
-│   │   ├── Guestbook.vue # 留言板
 │   │   ├── Admin.vue     # 后台管理
 │   │   └── admin/Write.vue # 文章编辑器
 │   ├── api/              # 前端 API 调用
 │   ├── router/           # 路由配置
 │   └── App.vue           # 根组件
 ├── server/               # Hono API 服务
-│   ├── routes/           # 路由 (posts, moments, settings, upload, pages, messages, feeds)
+│   ├── routes/           # 路由 (posts, moments, settings, upload, pages, feeds)
 │   ├── repositories/     # 数据层 (file / vercel)
 │   ├── middleware/       # 认证中间件
 │   └── tests/            # 回归测试 (npm test)
