@@ -11,6 +11,22 @@
   <img src="https://img.shields.io/badge/Vercel-000?logo=vercel&logoColor=white" alt="Vercel">
 </p>
 
+<p align="center">
+  <a href="./DEPLOY.md"><strong>📦 完整部署指南 → DEPLOY.md</strong></a>
+</p>
+
+---
+
+## 📑 目录
+
+- [✨ 功能](#功能)
+- [🛠 技术栈](#技术栈)
+- [🚀 部署到 Vercel](#部署到-vercel)
+- [💻 本地开发](#本地开发)
+- [⚡ 性能](#性能)
+- [📁 项目结构](#项目结构)
+- [📄 License](#license)
+
 ---
 
 ## ✨ 功能
@@ -35,16 +51,15 @@
 | 图片存储 | Vercel Blob（生产）/ 本地文件系统（本地） |
 | 部署 | Vercel |
 
-## 🚀 一键部署到 Vercel
+## 🚀 部署到 Vercel
 
-> **前置条件：** 你需要一个 [GitHub](https://github.com) 账号和 [Vercel](https://vercel.com) 账号。
+> 📦 **完整步骤（建表 SQL、Neon/Blob 创建、环境变量、上线与验证命令）请看 [DEPLOY.md](./DEPLOY.md)。** 下文只给速览。
+
+**前置条件：** 你需要一个 [GitHub](https://github.com) 账号和 [Vercel](https://vercel.com) 账号。
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/LiChen0459/chenBlog&env=ADMIN_TOKEN,CHENWEBSITE_URL,VITE_BLOG_URL)
 
-点击按钮后按提示操作：
-
-1. **创建 Git 仓库** — Vercel 会自动 fork 到你的 GitHub
-2. **配置环境变量：**
+点击按钮后按提示操作，只需在 Vercel 后台填这几个环境变量（详细说明见 [DEPLOY.md](./DEPLOY.md)）：
 
 | 变量 | 说明 | 必填 |
 |---|---|---|
@@ -52,45 +67,9 @@
 | `VITE_BLOG_URL` | 你的博客完整 URL（如 `https://blog.example.com`） | ✅ |
 | `CHENWEBSITE_URL` | 你的主站地址（用于跨站链接） | ❌ |
 
-3. **添加数据库和存储**（在 Vercel Dashboard）：
-   - **Neon Postgres** → 自动注入 `DATABASE_URL`
-   - **Vercel Blob** → 自动注入 `BLOB_READ_WRITE_TOKEN`
-4. **运行建表 SQL**（在 Neon 控制台）：
+> **数据库 & 存储：** 在 Vercel Dashboard 创建 **Neon Postgres** 与 **Vercel Blob**，会自动注入 `DATABASE_URL` 和 `BLOB_READ_WRITE_TOKEN`，无需手填。
 
-```sql
-CREATE TABLE IF NOT EXISTS posts (
-  id         SERIAL PRIMARY KEY,
-  title      TEXT NOT NULL,
-  date       DATE NOT NULL DEFAULT CURRENT_DATE,
-  summary    TEXT DEFAULT '',
-  content    TEXT DEFAULT '',
-  tags       TEXT DEFAULT '[]',
-  pinned     BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS moments (
-  id         SERIAL PRIMARY KEY,
-  date       DATE NOT NULL DEFAULT CURRENT_DATE,
-  time       TEXT NOT NULL,
-  content    TEXT NOT NULL,
-  image      TEXT,
-  images     TEXT DEFAULT '[]',
-  tags       TEXT DEFAULT '[]',
-  hidden     BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 站点设置（动态访问密码等），key/value 结构
-CREATE TABLE IF NOT EXISTS settings (
-  key        TEXT PRIMARY KEY,
-  value      TEXT,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-> 已有数据库不用重建，跑 `npm run db:migrate` 即可增量补齐 `tags` / `pinned` / `images` / `hidden` 列，
-> 并创建 `settings` 表与查询索引。
+> **已有数据库？** 不用重建表，跑 `npm run db:migrate` 即可增量补齐 `tags` / `pinned` / `images` / `hidden` 列、创建 `settings` 表与查询索引（SQL 详见 [DEPLOY.md](./DEPLOY.md)）。
 
 > 🔒 **隐藏动态**：后台「动态管理」里可把任意一条动态设为隐藏（或编辑时勾选「隐藏这条动态」）。
 > 隐藏后前台不再展示，只在 `/moments` 顶部显示「有 N 条隐藏动态 · 输入密码查看」。
@@ -98,7 +77,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
 部署完成后访问 Vercel 提供的域名即可。
 
-> 💡 **不想配数据库？** 也可以直接部署纯静态前端，博客数据写在 `src/data/posts.js`，只是没有后台管理功能。
+> 💡 **不想配数据库？** 也可以直接部署纯静态前端，博客数据写在 `src/data/posts.js`，只是没有后台管理功能（详见 [DEPLOY.md](./DEPLOY.md) 的「兜底」一节）。
 
 ## 💻 本地开发
 
@@ -169,8 +148,9 @@ npm test
 
 > 用例之间会互相写 `server/data/settings.json`，所以 `npm test` 用 `&&` **串行**执行，不要改成并行。
 
+> 🚀 准备上线到 Vercel？环境变量与完整部署流程看 **[DEPLOY.md](./DEPLOY.md)**。
 
-## ⚡ 性能：内容变多也不会变慢
+## ⚡ 性能
 
 早期版本有两个会随内容量线性恶化的点，现已修掉：
 
@@ -227,6 +207,8 @@ chen-blog/
 │   └── tests/            # 回归测试 (npm test)
 ├── api/index.js          # Vercel Serverless 入口
 ├── public/               # 静态资源
+├── DEPLOY.md             # 📦 部署到 Vercel 的完整指南
+├── README.md             # 本文件
 ├── vercel.json           # Vercel 配置
 └── vite.config.js        # Vite 配置
 ```
@@ -234,3 +216,7 @@ chen-blog/
 ## 📄 License
 
 MIT © Chen
+
+---
+
+> 📦 部署、建表 SQL、环境变量、上线与验证等问题，先看 **[DEPLOY.md](./DEPLOY.md)**。
