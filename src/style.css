@@ -306,7 +306,9 @@ button { font-family: inherit; }
   transform: translateY(-1px);
 }
 .post-card.pinned { border-color: rgba(41, 151, 255, 0.3); }
-.post-card a {
+/* The whole-card click target. `>` matters: a descendant selector would also
+   hit the nested category chip <a>, inflating it into a 64px-tall lozenge. */
+.post-card > a {
   display: block; padding: 22px 28px; color: inherit;
 }
 
@@ -899,7 +901,7 @@ img.lazy-img[loading] {
   .hero-desc { font-size: 1rem; }
   .section { margin-top: 52px; }
   .section-head h2 { font-size: 1.5rem; }
-  .post-card a { padding: 18px 20px; }
+  .post-card > a { padding: 18px 20px; }
   .post-card h3 { font-size: 1.02rem; }
   .card-bookmark { right: 16px; width: 22px; height: 31px; padding-top: 6px; }
   .moment-card { padding: 14px 18px; }
