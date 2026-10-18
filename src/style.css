@@ -16,6 +16,10 @@
   --bg-card-hover: #242428;
   --bg-input: #1a1a1e;
 
+  /* Code block surface — matches the highlight.js github-dark theme so the
+     sticky line-number gutter can share the same background. */
+  --code-bg: #0d1117;
+
   /* Skeleton shimmer — deliberately higher contrast than the surface tokens
      above so a loading list actually reads as "loading" on both themes.
      Measured on --bg-card: base 1.30:1, highlight 2.05:1, sweep delta 1.57:1
@@ -69,6 +73,9 @@
   --bg-card: #ffffff;
   --bg-card-hover: #fafafa;
   --bg-input: #f0f0f4;
+
+  /* Code block surface — matches the highlight.js github theme. */
+  --code-bg: #ffffff;
 
   /* Light theme sits on pure white cards, so the same alpha reads weaker;
      these values land at base 1.22:1 / highlight 1.61:1 / sweep 1.31:1. */
@@ -1051,6 +1058,84 @@ img.lazy-img[loading] {
 @media (max-width: 1359px) {
   .outline { display: none; }
   .outline-fab { display: inline-flex; }
+}
+
+/* ═══════════════════════════════════════════
+   CODE BLOCKS (rendered markdown)
+   Highlighting colours live in src/styles/hljs-theme.css (scoped per theme);
+   this section owns the chrome: bar, gutter, copy button, scrolling.
+   ═══════════════════════════════════════════ */
+.code-block {
+  margin: 1.4em 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+.code-block-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 5px 6px 5px 14px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.code-block-lang {
+  font-family: var(--font-mono);
+  font-size: 0.66rem; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.code-copy {
+  font: inherit; font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.code-copy:hover {
+  color: var(--accent-ink);
+  border-color: var(--border-hover);
+  background: var(--accent-dim);
+}
+.code-copy.copied {
+  color: var(--accent-ink);
+  border-color: transparent;
+  background: var(--accent-dim);
+}
+.code-block pre {
+  margin: 0;
+  overflow-x: auto;
+  background: transparent;
+}
+/* .code-line spans are display:block — the newlines live in CSS, not the
+   textContent, so copy rejoins them (see utils/codeCopy.js). */
+.code-block code {
+  display: block;
+  counter-reset: code-line;
+  background: transparent;
+  padding: 14px 0;
+  font-size: 0.82rem;
+  line-height: 1.75;
+}
+.code-line { display: block; counter-increment: code-line; padding: 0 18px; }
+.code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: 1.6em; margin-right: 16px;
+  text-align: right;
+  color: var(--text-muted);
+  opacity: 0.5;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Sticky so the gutter stays put while long lines scroll. */
+  position: sticky; left: 0;
+  background: var(--code-bg);
+}
+@media (max-width: 768px) {
+  .code-line { padding: 0 12px; }
+  .code-line::before { width: 1.4em; margin-right: 10px; }
 }
 
 /* ═══════════════════════════════════════════

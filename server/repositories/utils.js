@@ -35,6 +35,22 @@ export function today() {
 }
 
 /**
+ * Category paths are slash-separated ("技术/前端"). Stored values must be
+ * clean — no leading/trailing slashes, no empty segments — because the
+ * category filter is an exact SQL match and links are built from the raw
+ * value. "信息学奥赛/" would otherwise render as its own ghost category
+ * and never match its own filter page.
+ */
+export function normCategory(cat) {
+  return String(cat || '')
+    .trim()
+    .split('/')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join('/')
+}
+
+/**
  * Build the category tree + tag cloud from a list of posts (any shape that
  * carries `category` / `tags`). A category path like "技术/前端/Vue" registers
  * every prefix node ("技术", "技术/前端", "技术/前端/Vue") so the archive can
@@ -44,7 +60,7 @@ export function buildTaxonomy(posts) {
   const catMap = new Map()
   const tagMap = new Map()
   for (const p of posts || []) {
-    const raw = String(p.category || '').trim()
+    const raw = normCategory(p.category)
     if (raw) {
       const parts = raw.split('/').map((s) => s.trim()).filter(Boolean)
       let path = ''

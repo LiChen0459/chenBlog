@@ -6,6 +6,7 @@ import {
   normaliseLimit,
   normaliseOffset,
   buildTaxonomy,
+  normCategory,
   escapeLike,
 } from '../utils.js'
 
@@ -137,7 +138,7 @@ export const vercelPostsRepo = {
         ${data.title || '无标题'},
         ${data.date || today()},
         ${data.summary || ''},
-        ${data.category || ''},
+        ${normCategory(data.category)},
         ${data.content || ''},
         ${JSON.stringify(parseList(data.tags))}
       )
@@ -153,7 +154,7 @@ export const vercelPostsRepo = {
       UPDATE posts SET title    = ${data.title    ?? existing.title},
                        date     = ${data.date     ?? existing.date},
                        summary  = ${data.summary  ?? existing.summary},
-                       category = ${data.category ?? existing.category},
+                       category = ${normCategory(data.category ?? existing.category)},
                        content  = ${data.content  ?? existing.content},
                        tags     = ${JSON.stringify(data.tags ?? existing.tags)}
       WHERE id = ${id} RETURNING *

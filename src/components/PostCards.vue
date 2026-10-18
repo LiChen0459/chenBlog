@@ -13,11 +13,11 @@
         <div class="card-meta">
           <time>{{ post.date }}</time>
           <router-link
-            v-if="post.category"
+            v-if="normCategory(post.category)"
             class="card-category"
-            :to="`/category/${post.category.split('/').map(encodeURIComponent).join('/')}`"
+            :to="categoryLink(post.category)"
             @click.stop
-          >{{ post.category }}</router-link>
+          >{{ normCategory(post.category) }}</router-link>
         </div>
         <h3>{{ post.title }}</h3>
         <p>{{ post.summary }}</p>
@@ -37,6 +37,7 @@
 
 <script setup>
 import Icon from './Icon.vue'
+import { normCategory, categoryLink } from '../utils/category.js'
 
 defineProps({
   posts: { type: Array, required: true },

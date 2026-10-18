@@ -1,0 +1,192 @@
+/*
+ * Syntax highlighting colours for rendered markdown code blocks.
+ *
+ * GENERATED from the highlight.js 11.12 github (light) / github-dark (dark)
+ * themes in node_modules/highlight.js/styles/. Each theme's selectors are
+ * scoped to [data-theme=…] .detail-body; the layout rules (pre code.hljs /
+ * code.hljs) and the base .hljs background were dropped — src/style.css owns
+ * the block chrome and paints the surface with --code-bg. If highlight.js is
+ * upgraded, re-run the transform over the new theme files.
+ */
+
+[data-theme="light"] .detail-body .hljs {
+color: #24292e;
+}
+
+[data-theme="light"] .detail-body .hljs-doctag,
+[data-theme="light"] .detail-body .hljs-keyword,
+[data-theme="light"] .detail-body .hljs-meta .hljs-keyword,
+[data-theme="light"] .detail-body .hljs-template-tag,
+[data-theme="light"] .detail-body .hljs-template-variable,
+[data-theme="light"] .detail-body .hljs-type,
+[data-theme="light"] .detail-body .hljs-variable.language_ {
+color: #d73a49
+}
+
+[data-theme="light"] .detail-body .hljs-title,
+[data-theme="light"] .detail-body .hljs-title.class_,
+[data-theme="light"] .detail-body .hljs-title.class_.inherited__,
+[data-theme="light"] .detail-body .hljs-title.function_ {
+color: #6f42c1
+}
+
+[data-theme="light"] .detail-body .hljs-attr,
+[data-theme="light"] .detail-body .hljs-attribute,
+[data-theme="light"] .detail-body .hljs-literal,
+[data-theme="light"] .detail-body .hljs-meta,
+[data-theme="light"] .detail-body .hljs-number,
+[data-theme="light"] .detail-body .hljs-operator,
+[data-theme="light"] .detail-body .hljs-variable,
+[data-theme="light"] .detail-body .hljs-selector-attr,
+[data-theme="light"] .detail-body .hljs-selector-class,
+[data-theme="light"] .detail-body .hljs-selector-id {
+color: #005cc5
+}
+
+[data-theme="light"] .detail-body .hljs-regexp,
+[data-theme="light"] .detail-body .hljs-string,
+[data-theme="light"] .detail-body .hljs-meta .hljs-string {
+color: #032f62
+}
+
+[data-theme="light"] .detail-body .hljs-built_in,
+[data-theme="light"] .detail-body .hljs-symbol {
+color: #e36209
+}
+
+[data-theme="light"] .detail-body .hljs-comment,
+[data-theme="light"] .detail-body .hljs-code,
+[data-theme="light"] .detail-body .hljs-formula {
+color: #6a737d
+}
+
+[data-theme="light"] .detail-body .hljs-name,
+[data-theme="light"] .detail-body .hljs-quote,
+[data-theme="light"] .detail-body .hljs-selector-tag,
+[data-theme="light"] .detail-body .hljs-selector-pseudo {
+color: #22863a
+}
+
+[data-theme="light"] .detail-body .hljs-subst {
+color: #24292e
+}
+
+[data-theme="light"] .detail-body .hljs-section {
+color: #005cc5;
+  font-weight: bold
+}
+
+[data-theme="light"] .detail-body .hljs-bullet {
+color: #735c0f
+}
+
+[data-theme="light"] .detail-body .hljs-emphasis {
+color: #24292e;
+  font-style: italic
+}
+
+[data-theme="light"] .detail-body .hljs-strong {
+color: #24292e;
+  font-weight: bold
+}
+
+[data-theme="light"] .detail-body .hljs-addition {
+color: #22863a;
+  background-color: #f0fff4
+}
+
+[data-theme="light"] .detail-body .hljs-deletion {
+color: #b31d28;
+  background-color: #ffeef0
+}
+
+[data-theme="dark"] .detail-body .hljs {
+color: #c9d1d9;
+}
+
+[data-theme="dark"] .detail-body .hljs-doctag,
+[data-theme="dark"] .detail-body .hljs-keyword,
+[data-theme="dark"] .detail-body .hljs-meta .hljs-keyword,
+[data-theme="dark"] .detail-body .hljs-template-tag,
+[data-theme="dark"] .detail-body .hljs-template-variable,
+[data-theme="dark"] .detail-body .hljs-type,
+[data-theme="dark"] .detail-body .hljs-variable.language_ {
+color: #ff7b72
+}
+
+[data-theme="dark"] .detail-body .hljs-title,
+[data-theme="dark"] .detail-body .hljs-title.class_,
+[data-theme="dark"] .detail-body .hljs-title.class_.inherited__,
+[data-theme="dark"] .detail-body .hljs-title.function_ {
+color: #d2a8ff
+}
+
+[data-theme="dark"] .detail-body .hljs-attr,
+[data-theme="dark"] .detail-body .hljs-attribute,
+[data-theme="dark"] .detail-body .hljs-literal,
+[data-theme="dark"] .detail-body .hljs-meta,
+[data-theme="dark"] .detail-body .hljs-number,
+[data-theme="dark"] .detail-body .hljs-operator,
+[data-theme="dark"] .detail-body .hljs-variable,
+[data-theme="dark"] .detail-body .hljs-selector-attr,
+[data-theme="dark"] .detail-body .hljs-selector-class,
+[data-theme="dark"] .detail-body .hljs-selector-id {
+color: #79c0ff
+}
+
+[data-theme="dark"] .detail-body .hljs-regexp,
+[data-theme="dark"] .detail-body .hljs-string,
+[data-theme="dark"] .detail-body .hljs-meta .hljs-string {
+color: #a5d6ff
+}
+
+[data-theme="dark"] .detail-body .hljs-built_in,
+[data-theme="dark"] .detail-body .hljs-symbol {
+color: #ffa657
+}
+
+[data-theme="dark"] .detail-body .hljs-comment,
+[data-theme="dark"] .detail-body .hljs-code,
+[data-theme="dark"] .detail-body .hljs-formula {
+color: #8b949e
+}
+
+[data-theme="dark"] .detail-body .hljs-name,
+[data-theme="dark"] .detail-body .hljs-quote,
+[data-theme="dark"] .detail-body .hljs-selector-tag,
+[data-theme="dark"] .detail-body .hljs-selector-pseudo {
+color: #7ee787
+}
+
+[data-theme="dark"] .detail-body .hljs-subst {
+color: #c9d1d9
+}
+
+[data-theme="dark"] .detail-body .hljs-section {
+color: #1f6feb;
+  font-weight: bold
+}
+
+[data-theme="dark"] .detail-body .hljs-bullet {
+color: #f2cc60
+}
+
+[data-theme="dark"] .detail-body .hljs-emphasis {
+color: #c9d1d9;
+  font-style: italic
+}
+
+[data-theme="dark"] .detail-body .hljs-strong {
+color: #c9d1d9;
+  font-weight: bold
+}
+
+[data-theme="dark"] .detail-body .hljs-addition {
+color: #aff5b4;
+  background-color: #033a16
+}
+
+[data-theme="dark"] .detail-body .hljs-deletion {
+color: #ffdcd7;
+  background-color: #67060c
+}

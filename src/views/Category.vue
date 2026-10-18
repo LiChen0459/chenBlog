@@ -62,11 +62,15 @@ const taxonomy = ref({ categories: [], tags: [] })
 const total = ref(0)
 const loading = ref(true)
 
-/** pathMatch gives the (possibly multi-segment) category path. */
+/** pathMatch gives the (possibly multi-segment) category path. Empty
+ *  segments are dropped so "/category/技术/" behaves like "/category/技术". */
 const path = computed(() => {
   const raw = route.params.pathMatch
-  const segments = Array.isArray(raw) ? raw : [raw].filter(Boolean)
-  return segments.map((s) => decodeURIComponent(s)).join('/')
+  const segments = Array.isArray(raw) ? raw : [raw]
+  return segments
+    .map((s) => decodeURIComponent(s).trim())
+    .filter(Boolean)
+    .join('/')
 })
 
 const leafName = computed(() => path.value.split('/').filter(Boolean).pop() || '')

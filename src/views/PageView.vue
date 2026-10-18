@@ -16,7 +16,7 @@
           <div class="section-line">
             <div class="section-line-inner"></div>
           </div>
-          <div class="detail-body" v-html="rendered"></div>
+          <div class="detail-body" v-html="rendered" ref="bodyRef"></div>
           <ShareBar :title="page.title" />
         </article>
       </div>
@@ -43,17 +43,19 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted, onActivated } from 'vue'
+import { computed, ref, watch, onMounted, onActivated, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import ShareBar from '../components/ShareBar.vue'
 import { getPage, getPages } from '../api/pages.js'
 import { renderMarkdown } from '../utils/markdown.js'
+import { bindCodeCopy } from '../utils/codeCopy.js'
 import { setSeo, textPreview } from '../utils/seo.js'
 
 const route = useRoute()
 const page = ref(null)
 const allPages = ref([])
+const bodyRef = ref(null)
 const loading = ref(true)
 
 const slug = computed(() => route.params.slug || '')
@@ -73,8 +75,19 @@ async function load() {
     page.value = null
   } finally {
     loading.value = false
-    if (page.value) applySeo()
+    if (page.value) {
+      applySeo()
+      bindCopy()
+    }
   }
+}
+
+/** Delegated copy buttons for code blocks; rebind after each re-render. */
+let unbindCopy = null
+async function bindCopy() {
+  unbindCopy?.()
+  await nextTick()
+  unbindCopy = bindCodeCopy(bodyRef.value)
 }
 
 /** Standalone pages are indexable content too — give them real meta tags. */
@@ -91,5 +104,8 @@ watch(slug, load)
 onMounted(load)
 onActivated(() => {
   if (page.value) applySeo()
+})
+onBeforeUnmount(() => {
+  unbindCopy?.()
 })
 </script>

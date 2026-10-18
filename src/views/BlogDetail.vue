@@ -20,10 +20,10 @@
           <h1>{{ post.title }}</h1>
           <div class="detail-tax">
             <router-link
-              v-if="post.category"
+              v-if="normCategory(post.category)"
               class="card-category"
-              :to="`/category/${post.category.split('/').map(encodeURIComponent).join('/')}`"
-            >{{ post.category }}</router-link>
+              :to="categoryLink(post.category)"
+            >{{ normCategory(post.category) }}</router-link>
             <div class="tag-pills" v-if="post.tags?.length">
               <router-link
                 v-for="t in post.tags"
@@ -98,7 +98,9 @@ import ShareBar from '../components/ShareBar.vue'
 import { getPost } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
 import { renderMarkdown, slugify } from '../utils/markdown.js'
+import { bindCodeCopy } from '../utils/codeCopy.js'
 import { setSeo, articleJsonLd } from '../utils/seo.js'
+import { normCategory, categoryLink } from '../utils/category.js'
 
 const route = useRoute()
 const loading = ref(true)
@@ -178,6 +180,7 @@ async function loadPost() {
     applySeo()
     await nextTick()
     buildOutline()
+    bindCopy()
   } else {
     outline.value = []
   }
@@ -206,6 +209,13 @@ function removeScrollListeners() {
   window.removeEventListener('resize', onScroll)
 }
 
+/** Delegated copy buttons for code blocks; rebind after each re-render. */
+let unbindCopy = null
+function bindCopy() {
+  unbindCopy?.()
+  unbindCopy = bindCodeCopy(bodyRef.value)
+}
+
 onMounted(() => {
   loadPost()
   addScrollListeners()
@@ -225,6 +235,7 @@ watch(() => route.params.id, () => {
 })
 onBeforeUnmount(() => {
   removeScrollListeners()
+  unbindCopy?.()
   setSeo({})
 })
 </script>

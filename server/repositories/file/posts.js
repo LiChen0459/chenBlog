@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parseList, fmtDate, today, normaliseLimit, normaliseOffset, buildTaxonomy } from '../utils.js'
+import { parseList, fmtDate, today, normaliseLimit, normaliseOffset, buildTaxonomy, normCategory } from '../utils.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', '..', 'data')
@@ -122,7 +122,7 @@ export const filePostsRepo = {
       title: data.title || '无标题',
       date: data.date || today(),
       summary: data.summary || '',
-      category: data.category || '',
+      category: normCategory(data.category),
       content: data.content || '',
       tags: parseList(data.tags),
       pinned: !!data.pinned,
@@ -143,7 +143,7 @@ export const filePostsRepo = {
       title: data.title ?? current.title,
       date: data.date ?? current.date,
       summary: data.summary ?? current.summary,
-      category: data.category ?? current.category ?? '',
+      category: normCategory(data.category ?? current.category),
       content: data.content ?? current.content,
       tags: data.tags !== undefined ? parseList(data.tags) : parseList(current.tags),
       pinned: data.pinned !== undefined ? !!data.pinned : !!current.pinned,
