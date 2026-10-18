@@ -1153,6 +1153,10 @@ img.lazy-img[loading] {
 }
 .card-category:hover { background: rgba(41, 151, 255, 0.16); }
 
+/* In a card's meta row the pill sits next to a bare date string; centring on
+   the line box leaves it ~4px below the digits' optical centre — nudge up. */
+.card-meta .card-category { position: relative; top: -3px; }
+
 /* Clickable tag pills (router-links) — hover feedback, no underline. */
 .tag-pill--link {
   cursor: pointer; text-decoration: none;
