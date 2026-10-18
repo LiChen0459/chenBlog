@@ -104,7 +104,7 @@ Vercel Dashboard → 你的项目 → **Settings** → **Environment Variables**
 | `CHENWEBSITE_URL` | `https://你的主站地址.vercel.app` | 你的主站 |
 | `SITE_URL` | `https://你的博客域名.vercel.app` | 订阅源与 sitemap 的绝对地址（不填则用请求域名） |
 | `DATABASE_URL` | (自动注入) | 创建完 Neon 就有了 |
-| `BLOB_READ_WRITE_TOKEN` | (自动注入) | 创建完 Blob 就有了 |
+| `BLOB_READ_WRITE_TOKEN` | (自动注入) | 创建完 Blob image storage 就有了（上传与后台媒体库的列举/删除都走它） |
 
 > 全部勾选 **Production** 环境
 

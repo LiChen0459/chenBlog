@@ -44,4 +44,5 @@ export const api = {
   /** The whole envelope, including `total` / `hasMore` pagination metadata. */
   getPage: (path, opts) => request(path, opts),
   post: async (path, body, opts) => (await request(path, { ...opts, method: 'POST', body })).data,
+  del: async (path, opts) => (await request(path, { ...opts, method: 'DELETE' })).data,
 }

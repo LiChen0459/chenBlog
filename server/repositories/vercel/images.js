@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { put, list, del } from '@vercel/blob'
 import { safeExt } from '../utils.js'
 
 export const vercelImagesRepo = {
@@ -10,5 +10,34 @@ export const vercelImagesRepo = {
       contentType: file.type || undefined,
     })
     return { url }
+  },
+
+  /**
+   * Every blob in the store, newest first (the SDK's default ordering).
+   * `cursor` continues a previous page; both are returned for the next call.
+   */
+  async list({ cursor, limit = 100 } = {}) {
+    const res = await list({
+      limit: Math.min(Math.max(Number(limit) || 100, 1), 500),
+      ...(cursor ? { cursor } : {}),
+    })
+    return {
+      items: (res.blobs || []).map((b) => ({
+        url: b.url,
+        pathname: b.pathname,
+        size: b.size,
+        uploadedAt: b.uploadedAt,
+      })),
+      cursor: res.cursor ?? null,
+      hasMore: !!res.hasMore,
+    }
+  },
+
+  async remove(url) {
+    if (!/^https?:\/\//.test(String(url || ''))) {
+      throw new Error('非法的图片地址')
+    }
+    await del(url)
+    return { deleted: url }
   },
 }

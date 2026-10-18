@@ -4,6 +4,7 @@ import { logger } from 'hono/logger'
 import { postsRoutes } from './routes/posts.js'
 import { momentsRoutes } from './routes/moments.js'
 import { uploadRoutes } from './routes/upload.js'
+import { mediaRoutes } from './routes/media.js'
 import { settingsRoutes } from './routes/settings.js'
 import { pagesRoutes } from './routes/pages.js'
 import { getPostsRepo, getMomentsRepo, getPagesRepo } from './repositories/index.js'
@@ -59,6 +60,7 @@ export function createApp() {
   app.route('/posts', postsRoutes)
   app.route('/moments', momentsRoutes)
   app.route('/upload', uploadRoutes)
+  app.route('/media', mediaRoutes)
   app.route('/settings', settingsRoutes)
   app.route('/pages', pagesRoutes)
 

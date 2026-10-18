@@ -1,5 +1,6 @@
 import { getPostsRepo, getMomentsRepo, getImagesRepo, getSettingsRepo, getPagesRepo } from '../server/repositories/index.js'
 import { feedApp } from '../server/routes/feeds.js'
+import { buildUsageIndex } from '../server/routes/media.js'
 import {
   today,
   validateImage,
@@ -514,6 +515,35 @@ export default async function handler(req, res) {
         urls.push(url)
       }
       return json(res, { ok: true, data: { url: urls[0], urls } }, 201)
+    }
+
+    /* ── Media library ── */
+    if (p === '/api/media' && m === 'GET') {
+      if (!checkAuth(req)) return unauthorized(res)
+      const imagesRepo = await getImagesRepo()
+      const limit = normaliseLimit(u.searchParams.get('limit'), 100, 500)
+      const cursor = u.searchParams.get('cursor') || undefined
+      const { items, cursor: next, hasMore } = await imagesRepo.list({ cursor, limit })
+      const usage = await buildUsageIndex(items.map((i) => i.url))
+      return json(res, {
+        ok: true,
+        data: items.map((it) => ({ ...it, usedIn: usage.get(it.url) || [] })),
+        cursor: next ?? null,
+        hasMore: !!hasMore,
+      })
+    }
+
+    if (p === '/api/media' && m === 'DELETE') {
+      if (!checkAuth(req)) return unauthorized(res)
+      const url = u.searchParams.get('url')
+      if (!url) return json(res, { ok: false, error: '缺少 url 参数' }, 400)
+      try {
+        const imagesRepo = await getImagesRepo()
+        await imagesRepo.remove(url)
+        return json(res, { ok: true, data: { deleted: url } })
+      } catch (e) {
+        return json(res, { ok: false, error: e.message || '删除失败' }, 500)
+      }
     }
 
     return json(res, { ok: false, error: 'Not found' }, 404)

@@ -100,6 +100,10 @@
           <Icon name="layout" :size="16" />
           <span class="sb-label">页面</span>
         </button>
+        <button :class="{ active: nav === 'media' }" @click="nav = 'media'">
+          <Icon name="image" :size="16" />
+          <span class="sb-label">媒体库</span>
+        </button>
         <button :class="{ active: nav === 'settings' }" @click="nav = 'settings'">
           <Icon name="sliders" :size="16" />
           <span class="sb-label">设置</span>
@@ -633,6 +637,76 @@
         </Transition>
       </div>
 
+      <!-- ═══ 媒体库 ═══ -->
+      <div v-else-if="nav === 'media'" key="media">
+        <div class="page-heading-row">
+          <h2 class="page-heading">媒体库</h2>
+          <button class="mui-btn outlined" :disabled="isBusy('media-load')" @click="loadMedia(true)">
+            <Icon v-if="isBusy('media-load')" name="loader" :size="14" class="spin" />
+            <Icon v-else name="refresh" :size="14" />
+            刷新
+          </button>
+        </div>
+        <p class="media-hint">文章与动态里上传过的全部图片。删除前先看「使用中」标注——删掉后引用它的位置会显示裂图。</p>
+
+        <div v-if="mediaLoading && !media.length" class="media-grid" aria-hidden="true">
+          <div v-for="n in 6" :key="`msk-${n}`" class="media-card media-sk">
+            <div class="sk-line w70" />
+            <div class="sk-line w40" />
+          </div>
+        </div>
+
+        <div v-else-if="media.length" class="media-grid">
+          <div v-for="item in media" :key="item.url" class="media-card">
+            <a class="media-thumb" :href="item.url" target="_blank" rel="noopener" :title="mediaName(item)">
+              <img :src="item.url" :alt="mediaName(item)" loading="lazy" />
+            </a>
+            <div class="media-body">
+              <p class="media-name" :title="item.pathname || item.url">{{ mediaName(item) }}</p>
+              <p class="media-meta">{{ mediaSize(item.size) }} · {{ mediaDate(item.uploadedAt) }}</p>
+              <div v-if="item.usedIn?.length" class="media-usage">
+                <span class="media-usage-label">使用中</span>
+                <a
+                  v-for="u in item.usedIn"
+                  :key="`${u.type}-${u.id}`"
+                  class="media-usage-item"
+                  :href="usageLink(u)"
+                  target="_blank"
+                  rel="noopener"
+                  :title="u.title"
+                >
+                  <Icon :name="u.type === 'post' ? 'file-text' : u.type === 'moment' ? 'camera' : 'layout'" :size="11" />
+                  {{ u.title }}
+                </a>
+              </div>
+              <p v-else class="media-unused">未使用</p>
+            </div>
+            <button
+              class="mui-btn text danger media-del"
+              :disabled="isBusy(mediaBusyKey(item))"
+              @click="confirmDelMedia(item)"
+            >
+              <Icon v-if="isBusy(mediaBusyKey(item))" name="loader" :size="13" class="spin" />
+              <Icon v-else name="trash" :size="13" />
+              删除
+            </button>
+          </div>
+        </div>
+
+        <div v-else-if="!mediaLoading" class="empty-state">
+          <Icon name="image" :size="26" />
+          <span>还没有上传过图片</span>
+        </div>
+
+        <div v-if="mediaHasMore" class="load-more-wrap">
+          <button class="load-more-btn" :disabled="mediaLoading" @click="loadMedia(false)">
+            <Icon v-if="mediaLoading" name="loader" :size="14" class="spin" />
+            <Icon v-else name="chevron-down" :size="14" />
+            <span>{{ mediaLoading ? '加载中…' : '加载更多' }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- ═══ 设置 ═══ -->
       <div v-else-if="nav === 'settings'" key="settings">
         <h2 class="page-heading">设置</h2>
@@ -739,6 +813,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } 
 import Icon from '../components/Icon.vue'
 import { admin, saveCaptcha, clearCaptcha } from '../api/admin.js'
 import { momentImages } from '../utils/moment.js'
+import { getMedia, deleteMedia } from '../api/media.js'
 
 /* ── Lazy editor ──
    Toast UI editor is ~573 kB JS + 183 kB CSS. Importing it at module scope meant
@@ -901,6 +976,93 @@ async function bootstrap() {
   }
 }
 onMounted(bootstrap)
+
+/* ── Media library ── */
+const MEDIA_PAGE = 60
+
+const media = ref([])
+const mediaCursor = ref(null)
+const mediaHasMore = ref(false)
+const mediaLoading = ref(false)
+const mediaLoaded = ref(false)
+
+/** Load a page; `reset` restarts from the newest item. */
+async function loadMedia(reset) {
+  if (mediaLoading.value) return
+  mediaLoading.value = true
+  try {
+    const page = await getMedia({
+      cursor: reset ? undefined : mediaCursor.value || undefined,
+      limit: MEDIA_PAGE,
+    })
+    const items = page.items || []
+    media.value = reset ? items : [...media.value, ...items]
+    mediaCursor.value = page.cursor ?? null
+    mediaHasMore.value = !!page.hasMore
+  } catch (e) {
+    toastMsg(`媒体库加载失败：${e.message}`, 'error')
+  } finally {
+    mediaLoading.value = false
+  }
+}
+
+// Fetch on first visit only — the tab is not part of loadAll so the
+// dashboard never pays for the image scan.
+watch(nav, (v) => {
+  if (v === 'media' && !mediaLoaded.value) {
+    mediaLoaded.value = true
+    loadMedia(true)
+  }
+})
+
+const mediaBusyKey = (item) => `del-media-${item.url}`
+
+function confirmDelMedia(item) {
+  const used = item.usedIn || []
+  const names = used
+    .map((u) => `${u.type === 'post' ? '文章' : u.type === 'moment' ? '动态' : '页面'}《${u.title}》`)
+    .join('、')
+  confirmState.msg = used.length
+    ? `这张图片正被${names}使用，删除后这些位置将显示裂图。确定删除吗？`
+    : '确定要删除这张未使用的图片吗？此操作不可撤销。'
+  confirmState.key = mediaBusyKey(item)
+  confirmState.okLabel = '确认删除'
+  confirmState.show = true
+  confirmState.onOk = () => withBusy(confirmState.key, async () => {
+    try {
+      await deleteMedia(item.url)
+      media.value = media.value.filter((m) => m.url !== item.url)
+      toastMsg('图片已删除')
+    } catch (e) {
+      toastMsg(`删除失败：${e.message}`, 'error')
+    } finally {
+      confirmState.show = false
+    }
+  })
+}
+
+/** Last path segment, decoded — "moments/1712-ab.jpg" → "1712-ab.jpg". */
+function mediaName(item) {
+  const p = String(item.pathname || item.url || '')
+  try { return decodeURIComponent(p.split('/').pop() || p) } catch { return p.split('/').pop() || p }
+}
+
+function mediaSize(bytes) {
+  const n = Number(bytes) || 0
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / 1024 / 1024).toFixed(2)} MB`
+}
+
+function mediaDate(iso) {
+  return iso ? String(iso).slice(0, 10) : '—'
+}
+
+function usageLink(u) {
+  if (u.type === 'post') return `/blog/${u.id}`
+  if (u.type === 'page') return `/page/${u.slug || u.id}`
+  return '/moments'
+}
 
 /* ── Toast ── */
 const toast = reactive({ show: false, msg: '', type: 'success' })
@@ -2020,5 +2182,53 @@ watch(showPostForm, (v) => {
   .captcha-box { min-width: 84px; height: 40px; padding: 6px 14px; }
   .captcha-text { font-size: 1.05rem; }
   .captcha-input { height: 40px; width: 72px; }
+}
+
+/* ── Media library ── */
+.media-hint { font-size: 0.8rem; color: var(--text-muted); margin: -6px 0 18px; line-height: 1.6; }
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.media-card {
+  display: flex; flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.media-card:hover { border-color: var(--border-hover); }
+.media-thumb {
+  display: block; aspect-ratio: 4 / 3;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.media-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.media-body {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 12px 14px 10px;
+}
+.media-name {
+  margin: 0; font-size: 0.78rem; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.media-meta { margin: 0; font-size: 0.7rem; font-family: var(--font-mono); color: var(--text-muted); }
+.media-usage { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; }
+.media-usage-label { font-size: 0.66rem; font-weight: 600; color: var(--accent-ink); }
+.media-usage-item {
+  display: inline-flex; align-items: center; gap: 4px;
+  max-width: 100%; font-size: 0.68rem; color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.media-usage-item:hover { color: var(--accent-ink); }
+.media-unused { margin: 2px 0 0; font-size: 0.68rem; color: var(--text-muted); }
+.media-del { align-self: flex-start; margin: 0 14px 12px; }
+.media-sk { height: 210px; padding: 0; }
+@media (max-width: 768px) {
+  .media-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 }
 </style>
