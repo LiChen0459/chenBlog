@@ -151,7 +151,7 @@ npm run dev:server:local
 npm test
 ```
 
-八组回归测试，共 260 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
+八组回归测试，共 265 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
 每个用例结束都会把 `server/data/*.json` 还原：
 
 | 文件 | 覆盖内容 |

@@ -41,6 +41,11 @@
 
     <PostCards v-else-if="posts.length" :posts="posts" />
 
+    <div v-else-if="loadError" class="load-more-error" role="status">
+      <span>分类文章加载失败，请稍后重试。</span>
+      <button type="button" class="load-more-retry" @click="load">重试</button>
+    </div>
+
     <div v-else class="empty-state">
       <Icon name="folder" :size="26" />
       <span>这个分类下还没有文章</span>
@@ -53,7 +58,7 @@ import { computed, ref, watch, onMounted, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import PostCards from '../components/PostCards.vue'
-import { getPosts, getTaxonomy } from '../api/posts.js'
+import { getAllPosts, getTaxonomy } from '../api/posts.js'
 import { setSeo } from '../utils/seo.js'
 
 const route = useRoute()
@@ -61,6 +66,7 @@ const posts = ref([])
 const taxonomy = ref({ categories: [], tags: [] })
 const total = ref(0)
 const loading = ref(true)
+const loadError = ref(false)
 
 /** pathMatch gives the (possibly multi-segment) category path. Empty
  *  segments are dropped so "/category/技术/" behaves like "/category/技术". */
@@ -91,17 +97,19 @@ async function load() {
   loading.value = true
   try {
     const [page, tax] = await Promise.all([
-      getPosts({ category: requestedPath, limit: 200 }),
+      getAllPosts({ category: requestedPath }),
       getTaxonomy().catch(() => ({ categories: [], tags: [] })),
     ])
     if (requestedPath !== path.value) return
-    posts.value = page.items
-    total.value = page.total
+    posts.value = page
+    total.value = page.length
     taxonomy.value = tax
+    loadError.value = false
   } catch {
     if (requestedPath !== path.value) return
     posts.value = []
     total.value = 0
+    loadError.value = true
   } finally {
     if (requestedPath === path.value) loading.value = false
   }

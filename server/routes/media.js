@@ -30,12 +30,27 @@ export async function buildUsageIndex(urls) {
     if (arr) arr.push(usageOf(type, id, title))
   }
 
+  async function readAllPages(repo, options, pageSize, countOptions = options) {
+    const total = typeof repo.count === 'function' ? await repo.count(countOptions) : null
+    const rows = []
+    let offset = 0
+    while (total === null || offset < total) {
+      const page = await repo.getAll({ ...options, limit: pageSize, offset })
+      rows.push(...page)
+      if (page.length < pageSize) break
+      offset += page.length
+    }
+    return rows
+  }
+
+  const [postRepo, momentRepo, pageRepo] = await Promise.all([
+    getPostsRepo(), getMomentsRepo(), getPagesRepo(),
+  ])
   const [posts, moments, pages] = await Promise.all([
-    getPostsRepo().then((r) => r.getAll({ withContent: true, limit: 500 })),
-    // Hidden moments are still "in use" — an admin purging the library must see
-    // them. `buildUsageIndex` runs behind auth, so including them is safe.
-    getMomentsRepo().then((r) => r.getAll({ limit: 500, includeHidden: true })),
-    getPagesRepo().then((r) => r.getAll()),
+    readAllPages(postRepo, { withContent: true }, 200),
+    // Hidden moments are still in use; this route is admin-only.
+    readAllPages(momentRepo, { includeHidden: true }, 100),
+    pageRepo.getAll(),
   ])
 
   for (const p of posts) {
@@ -107,7 +122,7 @@ mediaRoutes.delete('/', requireAdmin, async (c) => {
     return c.json({ ok: true, data: { deleted: url } })
   } catch (e) {
     console.error('DELETE /api/media error:', e)
-    return c.json({ ok: false, error: e.message || '删除失败', code: e.code || 'MEDIA_ERROR' }, 500)
+    return c.json({ ok: false, error: e.message || '删除失败', code: e.code || 'MEDIA_ERROR' }, e.status || 500)
   }
 })
 

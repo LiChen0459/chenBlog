@@ -23,6 +23,18 @@ export async function getPosts({ limit, offset, category, tag, year } = {}) {
   return { items: data || [], total: total ?? (data || []).length, hasMore: !!hasMore, offset: off ?? 0 }
 }
 
+/** Load every matching lean post record by following the API pagination. */
+export async function getAllPosts({ category, tag, year, limit = 200 } = {}) {
+  const items = []
+  let offset = 0
+  while (true) {
+    const page = await getPosts({ limit, offset, category, tag, year })
+    items.push(...page.items)
+    if (!page.hasMore || !page.items.length) return items
+    offset += page.items.length
+  }
+}
+
 /** Full post, including the markdown body. */
 export function getPost(id) {
   return api.get(`/api/posts/${id}`)

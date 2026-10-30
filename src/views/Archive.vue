@@ -99,7 +99,7 @@
 <script setup>
 import { computed, ref, onMounted, onActivated } from 'vue'
 import Icon from '../components/Icon.vue'
-import { getPosts, getTaxonomy } from '../api/posts.js'
+import { getAllPosts, getTaxonomy } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
 import { setSeo } from '../utils/seo.js'
 
@@ -150,11 +150,11 @@ async function load() {
   loading.value = true
   try {
     const [page, tax] = await Promise.all([
-      getPosts({ limit: 200 }),
+      getAllPosts(),
       getTaxonomy().catch(() => ({ categories: [], tags: [] })),
     ])
-    posts.value = page.items
-    total.value = page.total
+    posts.value = page
+    total.value = page.length
     taxonomy.value = tax
   } catch {
     posts.value = blogPosts

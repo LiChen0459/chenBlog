@@ -45,8 +45,13 @@ function safeExt(file) {
 
 /** `/uploads/abc.jpg` → `abc.jpg`; rejects anything that is not a bare filename. */
 function safeName(url) {
-  const name = basename(decodeURIComponent(String(url || '')).replace(/^\/?uploads\//, ''))
-  if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) return null
+  const decoded = decodeURIComponent(String(url || ''))
+  const name = decoded.startsWith('/uploads/')
+    ? decoded.slice('/uploads/'.length)
+    : decoded.startsWith('uploads/')
+      ? decoded.slice('uploads/'.length)
+      : ''
+  if (!name || name === '.' || name === '..' || name !== basename(name) || name.includes('/') || name.includes('\\')) return null
   return name
 }
 
@@ -58,8 +63,8 @@ export const fileImagesRepo = {
     return { url: `/uploads/${filename}` }
   },
 
-  /** Every file in public/uploads, newest first. No cursor — one flat folder. */
-  async list({ limit = 100 } = {}) {
+  /** Files are listed newest first and paged with a numeric offset cursor. */
+  async list({ cursor, limit = 100 } = {}) {
     let names = []
     try { names = await readdir(UPLOAD_DIR) } catch { return { items: [], hasMore: false } }
     const rows = await Promise.all(names.map(async (name) => {
@@ -78,12 +83,20 @@ export const fileImagesRepo = {
       .filter(Boolean)
       .sort((a, b) => String(b.uploadedAt).localeCompare(String(a.uploadedAt)))
     const lim = Number(limit) > 0 ? Math.min(Number(limit), 500) : 100
-    return { items: items.slice(0, lim), hasMore: false }
+    const offset = Math.max(0, Number.parseInt(cursor, 10) || 0)
+    const page = items.slice(offset, offset + lim)
+    const hasMore = offset + page.length < items.length
+    return { items: page, cursor: hasMore ? String(offset + page.length) : null, hasMore }
   },
 
   async remove(url) {
     const name = safeName(url)
-    if (!name) throw new Error('非法的图片路径')
+    if (!name) {
+      const err = new Error('非法的图片路径')
+      err.status = 400
+      err.code = 'BAD_REQUEST'
+      throw err
+    }
     await unlink(join(UPLOAD_DIR, name))
     return { deleted: url }
   },

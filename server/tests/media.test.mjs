@@ -15,6 +15,8 @@ const momentsFile = new URL('../data/moments.json', import.meta.url)
 const metaFile = new URL('../data/media-meta.json', import.meta.url)
 const uploadsDir = new URL('../../public/uploads/', import.meta.url)
 const testFile = new URL('media-test-image.jpg', uploadsDir)
+const pageTestPrefix = `media-page-${process.pid}-`
+const pageTestFiles = Array.from({ length: 101 }, (_, i) => new URL(`${pageTestPrefix}${i}.jpg`, uploadsDir))
 
 const postsBackup = await readFile(postsFile, 'utf-8')
 const momentsBackup = await readFile(momentsFile, 'utf-8')
@@ -85,6 +87,17 @@ try {
   createdHiddenMomentId = r.body?.data?.id ?? null
   check('seed hidden moment created', r.status === 201 && createdHiddenMomentId !== null, JSON.stringify(r.body))
 
+  // A referenced image beyond the first repository page must still be marked used.
+  const seededPosts = JSON.parse(await readFile(postsFile, 'utf-8'))
+  const nextId = Math.max(0, ...seededPosts.map((p) => Number(p.id) || 0)) + 1
+  for (let i = 0; i < 205; i++) {
+    seededPosts.push({
+      id: nextId + i, title: `分页测试文章 ${i}`, date: '2026-10-18', summary: '',
+      category: '', tags: '[]', content: i === 204 ? `![图](${TEST_URL})` : '分页测试',
+    })
+  }
+  await writeFile(postsFile, JSON.stringify(seededPosts, null, 2), 'utf-8')
+
   // ---- list + usage index ----
   r = await req('/api/media', { headers: AUTH })
   check('list → 200', r.status === 200, JSON.stringify(r.body).slice(0, 120))
@@ -95,6 +108,7 @@ try {
   check('usage points at the post', used.includes(`post:${createdPostId}`), JSON.stringify(item?.usedIn))
   check('usage points at the (visible) moment', used.includes(`moment:${createdMomentId}`), JSON.stringify(item?.usedIn))
   check('usage points at the hidden moment', used.includes(`moment:${createdHiddenMomentId}`), JSON.stringify(item?.usedIn))
+  check('usage includes references beyond the first 200 posts', used.includes(`post:${nextId + 204}`), JSON.stringify(item?.usedIn))
   check('usage entry carries a title', (item?.usedIn ?? []).every((u) => !!u.title))
   check('response carries store total (count)', typeof r.body?.total === 'number', JSON.stringify(r.body?.total))
   check('response carries store totalSize', typeof r.body?.totalSize === 'number', JSON.stringify(r.body?.totalSize))
@@ -121,7 +135,7 @@ try {
   r = await req(`/api/media?url=${encodeURIComponent('/uploads/../posts.json')}`, {
     method: 'DELETE', headers: AUTH,
   })
-  check('path traversal rejected → 500', r.status === 500, JSON.stringify(r.body))
+  check('path traversal rejected → 400', r.status === 400, JSON.stringify(r.body))
 
   r = await req(`/api/media?url=${encodeURIComponent(TEST_URL)}`, { method: 'DELETE', headers: AUTH })
   check('delete → 200', r.status === 200, JSON.stringify(r.body))
@@ -132,6 +146,23 @@ try {
 
   r = await req('/api/media', { headers: AUTH })
   check('list no longer contains it', !(r.body?.data ?? []).some((i) => i.url === TEST_URL))
+
+  // Local uploads must expose every image through cursor pagination too.
+  for (const file of pageTestFiles) await writeFile(file, JPEG)
+  const seen = new Set()
+  let cursor = ''
+  do {
+    const query = new URLSearchParams({ limit: '40', ...(cursor ? { cursor } : {}) })
+    r = await req(`/api/media?${query}`, { headers: AUTH })
+    check(`local media page ${cursor || 'first'} → 200`, r.status === 200)
+    for (const image of r.body?.data || []) seen.add(image.pathname)
+    cursor = r.body?.hasMore ? r.body?.cursor : ''
+    if (r.body?.hasMore && !cursor) throw new Error('media pagination did not return a cursor')
+  } while (cursor)
+  check('local media pagination includes images beyond the first page', pageTestFiles.every((f) => {
+    const name = f.pathname.split('/').pop()
+    return [...seen].some((path) => path.endsWith(name))
+  }))
 
   // ---- cleanup of the seeded rows ----
   if (createdPostId !== null) {
@@ -148,6 +179,7 @@ try {
   console.log('  ❌ threw:', e.stack)
 } finally {
   await rm(testFile, { force: true })
+  await Promise.all(pageTestFiles.map((f) => rm(f, { force: true })))
   await writeFile(postsFile, postsBackup, 'utf-8')
   await writeFile(momentsFile, momentsBackup, 'utf-8')
   if (metaBackup !== null) await writeFile(metaFile, metaBackup, 'utf-8')

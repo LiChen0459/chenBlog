@@ -12,8 +12,8 @@ function authOpts() {
 
 /**
  * Media library (admin): every uploaded image, each annotated with where it
- * is referenced (posts / moments / pages). Blob storage pages by cursor;
- * the local folder returns everything at once.
+ * is referenced (posts / moments / pages). Blob and local file storage both
+ * return cursor-paginated results.
  *
  * @param {{ cursor?: string|null, limit?: number }} [opts]
  * @returns {Promise<{ items: Array, cursor: string|null, hasMore: boolean }>}

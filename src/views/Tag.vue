@@ -26,6 +26,11 @@
 
     <PostCards v-else-if="posts.length" :posts="posts" />
 
+    <div v-else-if="loadError" class="load-more-error" role="status">
+      <span>标签文章加载失败，请稍后重试。</span>
+      <button type="button" class="load-more-retry" @click="load">重试</button>
+    </div>
+
     <div v-else class="empty-state">
       <Icon name="tag" :size="26" />
       <span>这个标签下还没有文章</span>
@@ -38,13 +43,14 @@ import { computed, ref, watch, onMounted, onActivated } from 'vue'
 import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import PostCards from '../components/PostCards.vue'
-import { getPosts } from '../api/posts.js'
+import { getAllPosts } from '../api/posts.js'
 import { setSeo } from '../utils/seo.js'
 
 const route = useRoute()
 const posts = ref([])
 const total = ref(0)
 const loading = ref(true)
+const loadError = ref(false)
 
 const name = computed(() => decodeURIComponent(route.params.name || ''))
 
@@ -52,14 +58,16 @@ async function load() {
   const requestedName = name.value
   loading.value = true
   try {
-    const page = await getPosts({ tag: requestedName, limit: 200 })
+    const all = await getAllPosts({ tag: requestedName })
     if (requestedName !== name.value) return
-    posts.value = page.items
-    total.value = page.total
+    posts.value = all
+    total.value = all.length
+    loadError.value = false
   } catch {
     if (requestedName !== name.value) return
     posts.value = []
     total.value = 0
+    loadError.value = true
   } finally {
     if (requestedName === name.value) loading.value = false
   }

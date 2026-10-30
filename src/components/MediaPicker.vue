@@ -18,6 +18,11 @@
       </div>
 
       <div class="picker-body">
+        <div v-if="error" class="picker-error" role="alert">
+          <span>{{ error }}</span>
+          <button type="button" @click="retryLoad">重试</button>
+        </div>
+
         <div v-if="loading && !items.length" class="picker-grid">
           <div v-for="n in 8" :key="`sk-${n}`" class="picker-item picker-sk">
             <div class="sk-rect" />
@@ -37,7 +42,7 @@
           </div>
         </div>
 
-        <div v-else class="picker-empty">
+        <div v-else-if="!error" class="picker-empty">
           <Icon name="image" :size="24" />
           <span>{{ filterGroup ? '该分组暂无图片' : '还没有图片' }}</span>
         </div>
@@ -72,6 +77,7 @@ const items = ref([])
 const cursor = ref(null)
 const hasMore = ref(false)
 const loading = ref(false)
+const error = ref('')
 const filterGroup = ref('')
 const selectedUrl = ref('')
 
@@ -98,33 +104,42 @@ const filteredHasMore = computed(() => {
 })
 
 async function load(reset) {
-  if (loading.value) return
+  if (loading.value) return activeLoad
+  const seq = ++requestSeq
   loading.value = true
-  try {
-    const page = await getMedia({ cursor: reset ? undefined : cursor.value || undefined, limit: PAGE })
-    const arr = page.items || []
-    items.value = reset ? arr : [...items.value, ...arr]
-    cursor.value = page.cursor ?? null
-    hasMore.value = !!page.hasMore
-  } catch (e) {
-    // Silently fail — the picker is non-critical; caller can toast if needed.
-    console.error('MediaPicker load error:', e)
-  } finally {
-    loading.value = false
-  }
+  error.value = ''
+  activeLoad = (async () => {
+    try {
+      const page = await getMedia({ cursor: reset ? undefined : cursor.value || undefined, limit: PAGE })
+      if (seq !== requestSeq || !props.open) return
+      const arr = page.items || []
+      items.value = reset ? arr : [...items.value, ...arr]
+      cursor.value = page.cursor ?? null
+      hasMore.value = !!page.hasMore
+    } catch {
+      if (seq === requestSeq) error.value = '媒体库加载失败，请检查网络后重试。'
+    } finally {
+      if (seq === requestSeq) loading.value = false
+    }
+  })()
+  return activeLoad
 }
 
 function loadMore() {
   load(false)
 }
 
-function onFilterChange() {
+async function onFilterChange() {
   // If filtering and we already have items, no need to reload.
   // If the filtered view is empty but hasMore is true, auto-load next pages
   // until we find some or exhaust the store.
-  if (filterGroup.value && !visibleItems.value.length && hasMore.value) {
-    load(false)
+  while (filterGroup.value && !visibleItems.value.length && hasMore.value && !error.value) {
+    await load(false)
   }
+}
+
+function retryLoad() {
+  load(!items.value.length)
 }
 
 function pick(item) {
@@ -142,6 +157,8 @@ function onKeydown(event) {
 }
 
 let previousBodyOverflow = ''
+let requestSeq = 0
+let activeLoad = null
 
 function mediaName(item) {
   const p = String(item.pathname || item.url || '')
@@ -157,6 +174,9 @@ watch(() => props.open, (v) => {
     selectedUrl.value = ''
     load(true)
   } else {
+    requestSeq++
+    loading.value = false
+    error.value = ''
     document.body.style.overflow = previousBodyOverflow
     window.removeEventListener('keydown', onKeydown)
     items.value = []
@@ -241,6 +261,14 @@ onBeforeUnmount(() => {
 .picker-empty {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   padding: 40px; color: var(--text-muted); font-size: 0.85rem;
+}
+.picker-error {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px;
+  padding: 24px 12px; color: #ef6b67; font-size: 0.86rem; text-align: center;
+}
+.picker-error button {
+  padding: 5px 12px; border: 1px solid var(--border-hover); border-radius: 999px;
+  background: var(--bg-card); color: var(--accent-ink); font: inherit; cursor: pointer;
 }
 
 .picker-footer {

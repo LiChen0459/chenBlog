@@ -586,7 +586,7 @@ export default async function handler(req, res) {
         await imagesRepo.remove(url)
         return json(res, { ok: true, data: { deleted: url } })
       } catch (e) {
-        return json(res, { ok: false, error: e.message || '删除失败', code: e.code || 'MEDIA_ERROR' }, 500)
+        return json(res, { ok: false, error: e.message || '删除失败', code: e.code || 'MEDIA_ERROR' }, e.status || 500)
       }
     }
 
