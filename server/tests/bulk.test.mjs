@@ -150,6 +150,37 @@ try {
   posts = await allPosts()
   check('both are unpinned', posts.filter(p => [p1, p2].includes(p.id)).every(p => !p.pinned))
 
+  // ---- 精选 (featured) ----
+  r = await bulkPosts([p1, p2], 'feature')
+  check('feature 2 → updated 2', r.status === 200 && r.body.data.updated === 2, JSON.stringify(r.body))
+  posts = await allPosts()
+  check('both are featured', posts.filter(p => [p1, p2].includes(p.id)).every(p => p.featured))
+
+  // The list projection must carry the flag so the admin UI can render it.
+  check('list projection carries `featured`', posts.every(p => typeof p.featured === 'boolean'),
+    JSON.stringify(posts[0]))
+
+  // ?featured=1 is the endpoint a homepage carousel consumes.
+  r = await req('/api/posts?featured=1&limit=200')
+  const featuredIds = (r.body?.data ?? []).map(p => p.id)
+  check('?featured=1 returns only featured posts',
+    r.status === 200 && featuredIds.includes(p1) && featuredIds.includes(p2), JSON.stringify(featuredIds))
+  check('?featured=1 total matches the rows returned',
+    r.body?.total >= 2 && r.body?.total >= featuredIds.length, JSON.stringify(r.body?.total))
+
+  // /featured is the documented alias a homepage consumes.
+  r = await req('/api/posts/featured?limit=200')
+  check('/api/posts/featured alias works',
+    r.status === 200 && (r.body?.data ?? []).some(p => p.id === p1 || p.id === p2),
+    JSON.stringify((r.body?.data ?? []).map(p => p.id)))
+  check('/api/posts/featured is not swallowed by /:id', r.status !== 404)
+
+  r = await bulkPosts([p1, p2], 'unfeature')
+  check('unfeature 2 → updated 2', r.status === 200 && r.body.data.updated === 2)
+  r = await req('/api/posts?featured=1&limit=200')
+  check('after unfeature, ?featured=1 is empty',
+    (r.body?.data ?? []).every(p => p.id !== p1 && p.id !== p2), JSON.stringify((r.body?.data ?? []).map(p => p.id)))
+
   r = await bulkPosts([p1], 'explode')
   check('unknown post action → 400', r.status === 400)
 
@@ -218,6 +249,18 @@ try {
   const vp1 = await makePost('vercel bulk post')
   r = await call('POST', '/api/posts/bulk', { headers: entryAuth, body: { ids: [vp1], action: 'pin' } })
   check('entry: pin 1 → updated 1', r.status === 200 && r.body.data.updated === 1, JSON.stringify(r.body))
+  r = await call('POST', '/api/posts/bulk', { headers: entryAuth, body: { ids: [vp1], action: 'feature' } })
+  check('entry: feature 1 → updated 1', r.status === 200 && r.body.data.updated === 1, JSON.stringify(r.body))
+  r = await call('GET', '/api/posts?featured=1&limit=200')
+  check('entry: ?featured=1 includes the featured post',
+    r.status === 200 && (r.body?.data ?? []).some(p => p.id === vp1 && p.featured),
+    JSON.stringify((r.body?.data ?? []).map(p => p.id)))
+  r = await call('GET', '/api/posts/featured?limit=200')
+  check('entry: /api/posts/featured alias works',
+    r.status === 200 && (r.body?.data ?? []).some(p => p.id === vp1),
+    JSON.stringify((r.body?.data ?? []).map(p => p.id)))
+  r = await call('PATCH', `/api/posts/${vp1}/feature`, { headers: entryAuth })
+  check('entry: PATCH /:id/feature toggles back', r.status === 200 && r.body.data.featured === false, JSON.stringify(r.body))
   r = await call('POST', '/api/posts/bulk', { headers: entryAuth, body: { ids: [vp1], action: 'delete' } })
   check('entry: delete 1 post → deleted 1', r.status === 200 && r.body.data.deleted === 1, JSON.stringify(r.body))
 

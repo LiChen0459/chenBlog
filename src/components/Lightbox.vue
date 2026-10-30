@@ -16,7 +16,7 @@
           <Icon name="chevron-left" :size="22" />
         </button>
 
-        <img class="lb-img" :src="images[index]" alt="" @click.stop />
+        <img class="lb-img" :src="images[index]" :alt="`图片 ${index + 1}，共 ${images.length} 张`" @click.stop />
 
         <button
           v-if="images.length > 1"
@@ -60,8 +60,8 @@ function close() {
 
 function onKey(e) {
   if (e.key === 'Escape') close()
-  else if (e.key === 'ArrowLeft') step(-1)
-  else if (e.key === 'ArrowRight') step(1)
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1) }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); step(1) }
 }
 
 watch(

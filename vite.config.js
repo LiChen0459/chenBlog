@@ -14,6 +14,22 @@ export default defineConfig(({ mode }) => {
     '后端 API 未启动（' + API_TARGET + '）。请另开一个终端运行 npm run dev:server，或直接用 npm run dev:all 同时启动前后端。'
 
   return {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (id.includes('@toast-ui/editor')) return 'toast-editor'
+            if (id.includes('prosemirror')) return 'prosemirror'
+            if (id.includes('katex')) return 'katex'
+            if (id.includes('highlight.js')) return 'highlight'
+            if (id.includes('marked')) return 'marked'
+            if (id.includes('/vue/') || id.includes('/@vue/')) return 'vue'
+            if (id.includes('vue-router')) return 'router'
+          },
+        },
+      },
+    },
     plugins: [
       vue(),
       {

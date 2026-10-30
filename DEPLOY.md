@@ -1,5 +1,7 @@
 # ChenBlog 部署到 Vercel
 
+这份说明记录从配置数据库和图片存储，到部署后检查接口的步骤。已有 Neon 数据库可以直接执行迁移，不必重建数据表。
+
 ## 你需要在 Vercel Dashboard 配置的东西
 
 ### 1. 数据库 — Neon Postgres
@@ -18,6 +20,7 @@ CREATE TABLE IF NOT EXISTS posts (
   category   TEXT DEFAULT '',
   tags       TEXT DEFAULT '[]',
   pinned     BOOLEAN DEFAULT FALSE,
+  featured   BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -47,6 +50,14 @@ CREATE TABLE IF NOT EXISTS pages (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 媒体库元数据：每张图片的标签与分组（键为图片 URL）
+CREATE TABLE IF NOT EXISTS media_meta (
+  url        TEXT PRIMARY KEY,
+  tags       TEXT DEFAULT '[]',
+  grp        TEXT DEFAULT '',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
 > **已有数据库升级？** 不用重建表，直接跑 `npm run db:migrate`
@@ -56,6 +67,7 @@ CREATE TABLE IF NOT EXISTS pages (
 > ALTER TABLE posts   ADD COLUMN IF NOT EXISTS tags     TEXT    DEFAULT '[]';
 > ALTER TABLE posts   ADD COLUMN IF NOT EXISTS category TEXT    DEFAULT '';
 > ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pinned   BOOLEAN DEFAULT FALSE;
+> ALTER TABLE posts   ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT FALSE;
 > ALTER TABLE moments ADD COLUMN IF NOT EXISTS tags     TEXT    DEFAULT '[]';
 > ALTER TABLE moments ADD COLUMN IF NOT EXISTS images   TEXT    DEFAULT '[]';
 > ALTER TABLE moments ADD COLUMN IF NOT EXISTS hidden   BOOLEAN DEFAULT FALSE;
@@ -72,6 +84,13 @@ CREATE TABLE IF NOT EXISTS pages (
 >   title      TEXT NOT NULL,
 >   content    TEXT DEFAULT '',
 >   created_at TIMESTAMPTZ DEFAULT NOW(),
+>   updated_at TIMESTAMPTZ DEFAULT NOW()
+> );
+>
+> CREATE TABLE IF NOT EXISTS media_meta (
+>   url        TEXT PRIMARY KEY,
+>   tags       TEXT DEFAULT '[]',
+>   grp        TEXT DEFAULT '',
 >   updated_at TIMESTAMPTZ DEFAULT NOW()
 > );
 >

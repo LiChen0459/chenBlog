@@ -16,6 +16,7 @@
         class="search-input"
         placeholder="搜索标题、摘要或正文…"
         aria-label="搜索文章"
+        autocomplete="off"
         @input="onInput"
       />
       <button v-if="query" type="button" class="search-clear" aria-label="清空" @click="clearSearch">
@@ -91,15 +92,14 @@ let requestSeq = 0
 
 /** HTML-escape then wrap the (case-insensitive) match in <mark>. */
 function highlight(text, q) {
-  const safe = String(text || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const source = String(text || '')
   const needle = String(q || '').trim()
-  if (!needle) return safe
-  const idx = safe.toLowerCase().indexOf(needle.toLowerCase())
-  if (idx === -1) return safe
-  return safe.slice(0, idx)
-    + '<mark>' + safe.slice(idx, idx + needle.length) + '</mark>'
-    + safe.slice(idx + needle.length)
+  const idx = needle ? source.toLowerCase().indexOf(needle.toLowerCase()) : -1
+  const escape = (value) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+  if (idx === -1) return escape(source)
+  return escape(source.slice(0, idx))
+    + '<mark>' + escape(source.slice(idx, idx + needle.length)) + '</mark>'
+    + escape(source.slice(idx + needle.length))
 }
 
 /** Context window around the first body match. */
@@ -128,7 +128,7 @@ async function runSearch() {
   try {
     const res = await searchPosts(q)
     if (seq !== requestSeq) return // a newer keystroke already won
-    items.value = res.items
+    items.value = res.items || []
     total.value = res.total
     searched.value = true
   } catch (e) {

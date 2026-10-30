@@ -237,6 +237,7 @@ export default async function handler(req, res) {
         category: u.searchParams.get('category') || undefined,
         tag: u.searchParams.get('tag') || undefined,
         year: u.searchParams.get('year') || undefined,
+        featured: u.searchParams.get('featured') ? true : undefined,
       }
 
       // Lean projection — list views never need the full markdown body.
@@ -245,6 +246,26 @@ export default async function handler(req, res) {
         typeof postsRepo.count === 'function' ? postsRepo.count(filters) : Promise.resolve(null),
       ])
 
+      const totalCount = total ?? posts.length
+      return json(res, {
+        ok: true,
+        data: posts,
+        total: totalCount,
+        limit: perPage,
+        offset,
+        hasMore: perPage ? offset + posts.length < totalCount : false,
+      })
+    }
+
+    // Alias for /api/posts?featured=1 — what a homepage featured section consumes.
+    // Declared before the /:id matcher so "featured" is never parsed as an id.
+    if (p === '/api/posts/featured' && m === 'GET') {
+      const perPage = normaliseLimit(u.searchParams.get('limit'), null, 200)
+      const offset = normaliseOffset(u.searchParams.get('offset'))
+      const [posts, total] = await Promise.all([
+        postsRepo.getAll({ limit: perPage, offset, withContent: false, featured: true }),
+        typeof postsRepo.count === 'function' ? postsRepo.count({ featured: true }) : Promise.resolve(null),
+      ])
       const totalCount = total ?? posts.length
       return json(res, {
         ok: true,
@@ -285,17 +306,18 @@ export default async function handler(req, res) {
         content: b.content || '',
         tags: b.tags || [],
         pinned: !!b.pinned,
+        featured: !!b.featured,
       })
       return json(res, { ok: true, data: post }, 201)
     }
 
-    // Bulk actions for posts: { ids, action: 'pin' | 'unpin' | 'delete' }
+    // Bulk actions for posts: { ids, action: 'pin' | 'unpin' | 'feature' | 'unfeature' | 'delete' }
     if (p === '/api/posts/bulk' && m === 'POST') {
       if (!checkAuth(req)) return unauthorized(res)
       const b = await readBody(req)
       const ids = normaliseIds(b.ids)
       if (!ids.length) return json(res, { ok: false, error: '请先选择要操作的文章' }, 400)
-      if (!['pin', 'unpin', 'delete'].includes(b.action)) {
+      if (!['pin', 'unpin', 'feature', 'unfeature', 'delete'].includes(b.action)) {
         return json(res, { ok: false, error: '不支持的批量操作' }, 400)
       }
       if (b.action === 'delete') {
@@ -304,19 +326,33 @@ export default async function handler(req, res) {
         }
         return json(res, { ok: true, data: await postsRepo.deleteMany(ids) })
       }
+      if (b.action === 'feature' || b.action === 'unfeature') {
+        if (typeof postsRepo.setFeaturedMany !== 'function') {
+          return json(res, { ok: false, error: '当前存储不支持批量精选' }, 501)
+        }
+        return json(res, { ok: true, data: await postsRepo.setFeaturedMany(ids, b.action === 'feature') })
+      }
       if (typeof postsRepo.setPinnedMany !== 'function') {
         return json(res, { ok: false, error: '当前存储不支持批量置顶' }, 501)
       }
       return json(res, { ok: true, data: await postsRepo.setPinnedMany(ids, b.action === 'pin') })
     }
 
-    const pid = p.match(/^\/api\/posts\/(\d+)(\/pin)?$/)
+    const pid = p.match(/^\/api\/posts\/(\d+)(\/pin|\/feature)?$/)
     if (pid) {
       const id = Number(pid[1])
 
       if (pid[2]) {
         if (m !== 'PATCH') return json(res, { ok: false, error: 'Method not allowed' }, 405)
         if (!checkAuth(req)) return unauthorized(res)
+        if (pid[2] === '/feature') {
+          if (typeof postsRepo.toggleFeatured !== 'function') {
+            return json(res, { ok: false, error: '当前存储不支持精选' }, 501)
+          }
+          const r = await postsRepo.toggleFeatured(id)
+          if (!r) return json(res, { ok: false, error: '文章不存在' }, 404)
+          return json(res, { ok: true, data: r })
+        }
         const r = await postsRepo.togglePin(id)
         if (!r) return json(res, { ok: false, error: '文章不存在' }, 404)
         return json(res, { ok: true, data: r })
@@ -524,12 +560,20 @@ export default async function handler(req, res) {
       const limit = normaliseLimit(u.searchParams.get('limit'), 100, 500)
       const cursor = u.searchParams.get('cursor') || undefined
       const { items, cursor: next, hasMore } = await imagesRepo.list({ cursor, limit })
+      const summary = await imagesRepo.summarize()
       const usage = await buildUsageIndex(items.map((i) => i.url))
+      const metaMap = await imagesRepo.getMetas(items.map((i) => i.url))
       return json(res, {
         ok: true,
-        data: items.map((it) => ({ ...it, usedIn: usage.get(it.url) || [] })),
+        data: items.map((it) => ({
+          ...it,
+          usedIn: usage.get(it.url) || [],
+          meta: metaMap.get(it.url) || { tags: [], group: '' },
+        })),
         cursor: next ?? null,
         hasMore: !!hasMore,
+        total: summary.count,
+        totalSize: summary.size,
       })
     }
 
@@ -542,13 +586,30 @@ export default async function handler(req, res) {
         await imagesRepo.remove(url)
         return json(res, { ok: true, data: { deleted: url } })
       } catch (e) {
-        return json(res, { ok: false, error: e.message || '删除失败' }, 500)
+        return json(res, { ok: false, error: e.message || '删除失败', code: e.code || 'MEDIA_ERROR' }, 500)
+      }
+    }
+
+    if (p === '/api/media/meta' && m === 'PUT') {
+      if (!checkAuth(req)) return unauthorized(res)
+      let body
+      try { body = await req.json() } catch { return json(res, { ok: false, error: '请求体格式不正确', code: 'BAD_REQUEST' }, 400) }
+      const url = body?.url
+      if (!url || typeof url !== 'string') return json(res, { ok: false, error: '缺少 url 参数', code: 'BAD_REQUEST' }, 400)
+      const tags = Array.isArray(body.tags) ? body.tags.map(String).filter(Boolean).slice(0, 20) : []
+      const group = typeof body.group === 'string' ? body.group.trim().slice(0, 40) : ''
+      try {
+        const imagesRepo = await getImagesRepo()
+        const meta = await imagesRepo.setMeta(url, { tags, group })
+        return json(res, { ok: true, data: meta })
+      } catch (e) {
+        return json(res, { ok: false, error: e.message || '保存失败', code: e.code || 'MEDIA_ERROR' }, 500)
       }
     }
 
     return json(res, { ok: false, error: 'Not found' }, 404)
   } catch (e) {
     console.error('API error:', e)
-    return json(res, { ok: false, error: e.message || 'Server error' }, 500)
+    return json(res, { ok: false, error: e.message || 'Server error', code: e.code || 'SERVER_ERROR' }, 500)
   }
 }

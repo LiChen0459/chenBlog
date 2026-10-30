@@ -113,7 +113,10 @@ export const admin = {
     request(`/api/posts/${id}`, { method: 'DELETE' }),
   togglePin: (id) =>
     request(`/api/posts/${id}/pin`, { method: 'PATCH' }),
-  /** Batch action over many posts. `action` is 'pin' | 'unpin' | 'delete'. */
+  /** Toggle the featured (精选) flag — feeds the homepage carousel. */
+  toggleFeatured: (id) =>
+    request(`/api/posts/${id}/feature`, { method: 'PATCH' }),
+  /** Batch action over many posts. `action` is 'pin' | 'unpin' | 'feature' | 'unfeature' | 'delete'. */
   bulkPosts: (ids, action) =>
     request('/api/posts/bulk', {
       method: 'POST',

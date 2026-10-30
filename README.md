@@ -1,7 +1,8 @@
-<p align="center">
-  <h1 align="center">Chen's Blog</h1>
-  <p align="center">记录技术思考，分享生活碎片。不追逐热点，只写自己的节奏。</p>
-</p>
+<h1 align="center">Chen's Blog</h1>
+
+<p align="center">一个用来写文章、记日常，也方便自己维护的个人博客。</p>
+
+这是我平时整理技术笔记和生活记录的地方。前台用 Vue 展示文章、动态和归档，后台负责编辑内容、管理图片；开发时可以用本地文件存储，部署后可以接 Neon 和 Vercel Blob。
 
 <p align="center">
   <img src="https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js&logoColor=white" alt="Vue">
@@ -12,44 +13,45 @@
 </p>
 
 <p align="center">
-  <a href="./DEPLOY.md"><strong>📦 完整部署指南 → DEPLOY.md</strong></a>
+  <a href="./DEPLOY.md"><strong>部署说明 → DEPLOY.md</strong></a>
 </p>
 
 ---
 
-## 📑 目录
+## 目录
 
-- [✨ 功能](#功能)
-- [🛠 技术栈](#技术栈)
-- [🚀 部署到 Vercel](#部署到-vercel)
-- [💻 本地开发](#本地开发)
-- [⚡ 性能](#性能)
-- [📁 项目结构](#项目结构)
-- [📄 License](#license)
+- [功能](#功能)
+- [技术栈](#技术栈)
+- [部署到 Vercel](#部署到-vercel)
+- [本地开发](#本地开发)
+- [性能](#性能)
+- [项目结构](#项目结构)
+- [License](#license)
 
 ---
 
-## ✨ 功能
+## 功能
 
-- 📝 **博客文章** — Markdown 写作，KaTeX 数学公式，代码块语法高亮（highlight.js，明暗两套主题），带行号、语言标签和一键复制按钮，置顶（书签丝带）
-- 📸 **动态 Moments** — 类似朋友圈的短内容分享，支持一次上传多张图片 + 灯箱浏览
-- 🙈 **隐藏动态** — 单条动态可隐藏，前台需输入访问密码才能查看；密码可在后台自定义
-- ✅ **批量操作** — 文章/动态列表可多选，一次置顶、隐藏或删除
-- 🗂 **分类 & 标签** — 分类是层级结构（`技术/前端` 这样的斜杠路径，自动生成树），标签是扁平关键词；两个维度配合归档。分类路径写入时自动清洗（多余的斜杠、空段一律去掉），不会出现「信息学奥赛/」这种显示和链接
-- 🖼 **媒体库** — 后台可浏览所有已上传图片（缩略图 / 体积 / 上传时间），每张图标注「使用中」并列出引用它的文章、动态、页面（可直接点过去），未使用的标出来；确认删除时若仍被引用会先列出引用位置，支持分页加载
-- 📅 **归档页** — 按时间线浏览所有文章，可按年份翻页，顶部是分类树 + 标签云
-- 🔍 **全文搜索** — 站内搜索，标题/摘要/正文模糊匹配，标题命中优先，结果带关键词高亮
-- 📄 **独立页面** — 关于我 / 友情链接 等不按时间排序的静态页，地址固定 `/page/<slug>`，后台可增删改
-- 🔗 **分享** — 文章页底部分享条：复制链接 / 微博 / 微信扫码（移动端还有系统原生分享），二维码由公共 QR 服务渲染，失败时回落为直接复制链接
-- 📡 **订阅源** — RSS 2.0 与 Atom 1.0（`/rss.xml`、`/atom.xml`），以及实时生成的 `sitemap.xml`
-- 🔍 **SEO** — 每个路由独立的 title / description / canonical / Open Graph / Twitter Card，文章页附带 BlogPosting 结构化数据（JSON-LD），搜索页 `noindex`
-- 🔐 **登录人机验证** — 后台登录需先答对一道服务端签名的算术题（答案在服务端校验，带 12 小时有效期，刷新页面不用重复答）
-- 🎨 **暗色/亮色主题** — 一键切换，自动记忆
-- 🔧 **后台管理** — 文章 & 动态 & 页面的 CRUD，Markdown 编辑器，批量图片上传
-- 📱 **响应式设计** — 桌面端侧边栏 + 移动端适配
-- ⚡ **Vercel 部署** — 一键部署，全球 CDN 加速
+- **文章** — Markdown、数学公式、代码高亮与复制；支持置顶和精选。
+- **动态** — 发布短内容和多张图片，支持灯箱浏览。
+- **隐藏动态** — 可在后台设置为隐藏，通过访问密码查看。
+- **批量操作** — 批量置顶、精选、隐藏或删除文章和动态。
+- **分类和标签** — 分类支持层级路径（如 `技术/前端`），标签用于补充关键词；归档页提供分类树和标签列表。
+- **媒体库** — 浏览和筛选图片，查看图片引用位置，并管理分组、标签和删除。
+- **图片选择** — 写文章时插入图片，编辑动态时从媒体库添加图片。
+- **归档** — 按年份浏览文章，并查看分类和标签。
+- **搜索** — 搜索文章标题、摘要和正文。
+- **独立页面** — 管理关于、友情链接等固定页面。
+- **分享** — 复制文章链接、分享到微博，或用微信扫码。
+- **订阅** — 提供 RSS、Atom 和 sitemap。
+- **SEO** — 页面级标题和描述、canonical、社交分享信息及文章结构化数据。
+- **登录验证** — 后台登录前需完成算术验证。
+- **主题** — 支持暗色和亮色模式。
+- **后台** — 管理文章、动态、页面和图片。
+- **响应式布局** — 适配桌面和手机。
+- **部署** — 可使用 Vercel Functions、Neon Postgres 和 Blob。
 
-## 🛠 技术栈
+## 技术栈
 
 | 层 | 技术 |
 |---|---|
@@ -60,9 +62,9 @@
 | 图片存储 | Vercel Blob（生产）/ 本地文件系统（本地） |
 | 部署 | Vercel |
 
-## 🚀 部署到 Vercel
+## 部署到 Vercel
 
-> 📦 **完整步骤（建表 SQL、Neon/Blob 创建、环境变量、上线与验证命令）请看 [DEPLOY.md](./DEPLOY.md)。** 下文只给速览。
+> 建表、环境变量和上线验证步骤见 [DEPLOY.md](./DEPLOY.md)。
 
 **前置条件：** 你需要一个 [GitHub](https://github.com) 账号和 [Vercel](https://vercel.com) 账号。
 
@@ -79,7 +81,7 @@
 
 > **数据库 & 存储：** 在 Vercel Dashboard 创建 **Neon Postgres** 与 **Vercel Blob**，会自动注入 `DATABASE_URL` 和 `BLOB_READ_WRITE_TOKEN`，无需手填。
 
-> **已有数据库？** 不用重建表，跑 `npm run db:migrate` 即可增量补齐 `tags` / `pinned` / `images` / `hidden` / `category` 列，创建 `pages` 表与查询索引（SQL 详见 [DEPLOY.md](./DEPLOY.md)）。
+> **已有数据库？** 不用重建表，跑 `npm run db:migrate` 即可增量补齐 `tags` / `pinned` / `featured` / `images` / `hidden` / `category` 列，创建 `pages` / `media_meta` 表与查询索引（SQL 详见 [DEPLOY.md](./DEPLOY.md)）。
 
 > 🔒 **隐藏动态**：后台「动态管理」里可把任意一条动态设为隐藏（或编辑时勾选「隐藏这条动态」）。
 > 隐藏后前台不再展示，只在 `/moments` 顶部显示「有 N 条隐藏动态 · 输入密码查看」。
@@ -89,7 +91,7 @@
 
 > 💡 **不想配数据库？** 也可以直接部署纯静态前端，博客数据写在 `src/data/posts.js`，只是没有后台管理功能（详见 [DEPLOY.md](./DEPLOY.md) 的「兜底」一节）。
 
-## 💻 本地开发
+## 本地开发
 
 ```bash
 # 安装依赖
@@ -125,6 +127,9 @@ cp .env.example .env
 ADMIN_TOKEN=your-secret-token-here
 CHENWEBSITE_URL=https://your-website.vercel.app
 VITE_BLOG_URL=https://your-blog.vercel.app
+# 设了 DATABASE_URL 时上传图片和后台媒体库还需要它（图片走线上 Blob）；
+# 纯本地 --local 开发不需要。Vercel 控制台 → 存储 → Blob → .env.local 可复制。
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxxxxxxx
 ```
 
 ### 数据存在哪？
@@ -132,7 +137,7 @@ VITE_BLOG_URL=https://your-blog.vercel.app
 后端启动时会打印当前存储位置：
 
 - **`.env` 里没有 `DATABASE_URL`** → 用本地 JSON（`server/data/*.json`）+ `public/uploads/`，无需任何外部服务。
-- **`.env` 里有 `DATABASE_URL`** → 直接读写 Neon 线上库（Vercel Blob 存图），**改动会直接影响线上数据**。
+- **`.env` 里有 `DATABASE_URL`** → 直接读写 Neon 线上库（Vercel Blob 存图），**改动会直接影响线上数据**。此模式下还需配 `BLOB_READ_WRITE_TOKEN`，否则后台上传图片和「媒体库」会提示未配置（媒体库里会显示修复办法，按提示补变量或改回本地存储即可）。
 
 想在配了 `DATABASE_URL` 的情况下改用本地 JSON，加 `--local` 即可（跨平台，无需改环境变量）：
 
@@ -146,7 +151,7 @@ npm run dev:server:local
 npm test
 ```
 
-八组回归测试，共 238 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
+八组回归测试，共 260 项断言，全部跑在本地 JSON 存储上（会强制 `USE_LOCAL_DATA=1`，不会碰线上库），
 每个用例结束都会把 `server/data/*.json` 还原：
 
 | 文件 | 覆盖内容 |
@@ -155,32 +160,69 @@ npm test
 | `server/tests/features.test.mjs` | 分类/标签/年份筛选、全文搜索与排序、分类树、独立页面 CRUD（含地址规范化与占用检查）、RSS/Atom/sitemap 的绝对链接与 XML 转义；Hono 与 Vercel 两个入口都测 |
 | `server/tests/settings-unlock.test.mjs` | 设置读写、自定义密码（scrypt 存储）、解锁令牌的签发与篡改拒绝、令牌权限边界 |
 | `server/tests/vercel-entry.test.mjs` | `api/index.js`（生产真正跑的入口）的分页、隐藏动态、解锁令牌、CORS 头 |
-| `server/tests/bulk.test.mjs` | 批量隐藏/显示/删除/置顶的权限、参数校验、未知 id 容错、去重，Hono 与 Vercel 两个入口都测 |
+| `server/tests/bulk.test.mjs` | 批量隐藏/显示/删除/置顶/精选的权限、参数校验、未知 id 容错、去重，`?featured=1` 筛选与精选开关，Hono 与 Vercel 两个入口都测 |
 | `server/tests/auth-captcha.test.mjs` | 登录人机验证：挑战题签发、无/错/伪造验证码一律 401、答对+错密码 401、答对+对密码 200、答对后可复用、解锁令牌不能冒充验证码；Hono 与 Vercel 两个入口都测 |
 | `server/tests/category-norm.test.mjs` | 分类路径规范化：`normCategory` 各种脏输入、分类树不注册幽灵节点、创建/更新写入时自动清洗、清洗后精确筛选能命中 |
-| `server/tests/media.test.mjs` | 媒体库：未登录 401、列出图片与体积、使用位置索引（文章/动态双命中）、缺 url 400、路径穿越拒绝、删除后文件与列表同步消失 |
+| `server/tests/media.test.mjs` | 媒体库：未登录 401、列出图片与体积、使用位置索引（文章/动态/隐藏动态命中）、标签与分组增改读回、缺 url 400、路径穿越拒绝、删除后文件与列表同步消失、总量字段 |
 
 > 用例之间会互相写 `server/data/settings.json`，所以 `npm test` 用 `&&` **串行**执行，不要改成并行。
 
 > 🚀 准备上线到 Vercel？环境变量与完整部署流程看 **[DEPLOY.md](./DEPLOY.md)**。
 
-## ⚡ 性能
+## 公开 API
 
-早期版本有两个会随内容量线性恶化的点，现已修掉：
+所有读接口都是公开的（无需 token），返回统一信封 `{ ok, data, ... }`。写接口需要
+`Authorization: Bearer <ADMIN_TOKEN>`。
+
+| 接口 | 说明 |
+| --- | --- |
+| `GET /api/posts` | 文章列表（`id`、标题、日期、摘要、分类、标签、置顶和精选状态，不含正文）。筛选参数可叠加：`?category=技术/前端`、`?tag=vue`、`?year=2026`、`?featured=1`、`?limit=N&offset=N`（或 `?page=N`） |
+| `GET /api/posts/:id` | 单篇文章全文（含 `content`） |
+| `GET /api/posts/featured` | **精选文章**，等价于 `/api/posts?featured=1` |
+| `GET /api/posts/search?q=` | 全文搜索 |
+| `GET /api/posts/taxonomy` | 分类树 + 标签云（含计数） |
+| `GET /api/moments` | 动态列表；`?limit=N&offset=N` |
+| `GET /api/media` | 媒体库（需 admin token）：分页列举图片 + 每张图的使用位置 |
+| `GET /rss.xml` `/atom.xml` `/sitemap.xml` | 订阅源与站点地图 |
+
+**精选文章的用法**：在后台「文章」列表点某行的「精选」星标（或勾选多篇后批量「设为精选」），
+然后在任意页面直接拉取：
+
+```bash
+curl https://你的域名/api/posts/featured?limit=5
+```
+
+```jsonc
+// 200
+{
+  "ok": true,
+  "data": [
+    { "id": 12, "title": "…", "date": "2026-10-01", "summary": "…",
+      "category": "技术/前端", "tags": ["vue"], "pinned": false, "featured": true }
+  ],
+  "total": 1, "limit": 5, "offset": 0, "hasMore": false
+}
+```
+
+列表项是精简投影，没有 `content`；需要全文再按 `id` 拉 `/api/posts/:id`。
+
+## 性能
+
+前台文章列表使用精简字段和分页：列表接口不返回正文，数据库按页读取；文章正文只在打开详情页时请求。这样首页和列表页不必下载所有文章内容。
 
 **1. 列表接口不再返回正文。** 以前 `GET /api/posts` 是 `SELECT *`，博客列表和后台表格
 都会把每篇文章的完整 Markdown 正文一起拉下来——后台表格根本用不到正文。
-现在列表走精简投影（`id, title, date, summary, tags, pinned`），正文只在
+现在列表走精简投影（`id, title, date, summary, category, tags, pinned, featured`），正文只在
 `GET /api/posts/:id` 单独取。
 
-实测（60 篇文章，每篇正文约 21.7 KB）：
+一次本地对比（60 篇文章，每篇正文约 21.7 KB）：
 
 | | 修复前 | 修复后 | 降幅 |
 | --- | --- | --- | --- |
 | 全量列表 | 1364.8 KB | 11.4 KB | **119.4×** |
 | 首屏（9 篇） | 204.7 KB | 1.7 KB | **119.0×** |
 
-**2. 分页下推到数据库。** 以前是"全查出来再在 JS 里 `slice`"，文章越多、
+分页也由数据库完成。旧实现会先读出全部文章，再在 JS 里 `slice`；文章越多，
 每次请求传输和内存占用越大。现在用真正的 SQL `LIMIT`/`OFFSET`，并给排序键建了索引：
 
 ```sql
@@ -190,16 +232,15 @@ CREATE INDEX moments_list_idx ON moments (date DESC, time DESC);
 
 文章列表每页 9 篇，滚动到底再拉下一页，因此首屏成本与文章总数无关。
 
-**3. 编辑器不再阻塞后台首屏。** Toast UI 编辑器约 573 KB JS + 183 KB CSS。
+**3. 编辑器按需加载。** Toast UI 编辑器约 573 KB JS + 183 KB CSS。
 它原本在 `Admin.vue` 顶层静态引入，意味着只要打开 `/desk` 就会下载整套编辑器，
 哪怕你只是想看一眼文章列表。现在改为打开编辑弹窗时才动态加载，
 `/desk` 首屏少下载约 738 KB（gzip 约 286 KB）。
 
-> 其余体积来自 KaTeX / marked（文章详情页）与编辑器本身，都是按路由懒加载的，
-> 首页只加载入口 chunk（约 123 KB，gzip 48.8 KB）。
+> 体积是依赖版本、构建配置和压缩方式共同决定的。当前本地构建首页需加载的入口、Vue 与路由脚本合计约 133 KB（gzip 约 53 KB）；KaTeX 和代码高亮在打开文章后再加载，编辑器只在进入写作页面时加载。不同部署环境的结果可能略有差异。
 
 
-## 📁 项目结构
+## 项目结构
 
 ```
 chen-blog/
@@ -240,4 +281,4 @@ MIT © Chen
 
 ---
 
-> 📦 部署、建表 SQL、环境变量、上线与验证等问题，先看 **[DEPLOY.md](./DEPLOY.md)**。
+> 部署与数据库配置步骤见 **[DEPLOY.md](./DEPLOY.md)**。

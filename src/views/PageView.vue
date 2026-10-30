@@ -48,7 +48,7 @@ import { useRoute } from 'vue-router'
 import Icon from '../components/Icon.vue'
 import ShareBar from '../components/ShareBar.vue'
 import { getPage, getPages } from '../api/pages.js'
-import { renderMarkdown } from '../utils/markdown.js'
+import { renderMarkdown, loadMarkdownRenderer } from '../utils/markdown.js'
 import { bindCodeCopy } from '../utils/codeCopy.js'
 import { setSeo, textPreview } from '../utils/seo.js'
 
@@ -63,6 +63,7 @@ const rendered = computed(() => renderMarkdown(page.value?.content || ''))
 const otherPages = computed(() => allPages.value.filter((p) => p.slug !== page.value?.slug))
 
 async function load() {
+  const requestedSlug = slug.value
   loading.value = true
   try {
     const [current, all] = await Promise.all([
@@ -74,6 +75,8 @@ async function load() {
   } catch {
     page.value = null
   } finally {
+    if (requestedSlug !== slug.value) return
+    await loadMarkdownRenderer()
     loading.value = false
     if (page.value) {
       applySeo()

@@ -49,16 +49,19 @@ const loading = ref(true)
 const name = computed(() => decodeURIComponent(route.params.name || ''))
 
 async function load() {
+  const requestedName = name.value
   loading.value = true
   try {
-    const page = await getPosts({ tag: name.value, limit: 200 })
+    const page = await getPosts({ tag: requestedName, limit: 200 })
+    if (requestedName !== name.value) return
     posts.value = page.items
     total.value = page.total
   } catch {
+    if (requestedName !== name.value) return
     posts.value = []
     total.value = 0
   } finally {
-    loading.value = false
+    if (requestedName === name.value) loading.value = false
   }
 }
 
@@ -69,5 +72,6 @@ onMounted(() => {
 })
 onActivated(() => {
   setSeo({ title: `标签：${name.value}`, description: `标签「${name.value}」下的全部文章。`, path: `/tag/${encodeURIComponent(name.value)}` })
+  if (!posts.value.length && !loading.value) load()
 })
 </script>

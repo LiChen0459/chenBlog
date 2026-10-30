@@ -1,6 +1,7 @@
 {
   "name": "chen-blog",
   "version": "1.0.0",
+  "description": "Chen 的个人博客，记录技术笔记与日常。",
   "private": true,
   "type": "module",
   "scripts": {

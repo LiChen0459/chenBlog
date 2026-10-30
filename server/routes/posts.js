@@ -12,7 +12,8 @@ function parseId(raw) {
 }
 
 // GET /api/posts?limit=N&offset=N  (or ?page=N as a shorthand for offset)
-//   Optional filters (combined with AND): category=技术/前端, tag=vue, year=2025
+//   Optional filters (combined with AND): category=技术/前端, tag=vue, year=2025,
+//   featured=1 (精选文章 — what a homepage carousel should consume)
 //
 // Returns the LEAN projection (no `content`) because every caller of this
 // endpoint renders a list. Full bodies come from GET /api/posts/:id.
@@ -29,6 +30,7 @@ postsRoutes.get('/', async (c) => {
     category: c.req.query('category') || undefined,
     tag: c.req.query('tag') || undefined,
     year: c.req.query('year') || undefined,
+    featured: c.req.query('featured') ? true : undefined,
   }
 
   const [posts, total] = await Promise.all([
@@ -36,6 +38,28 @@ postsRoutes.get('/', async (c) => {
     typeof repo.count === 'function' ? repo.count(filters) : Promise.resolve(null),
   ])
 
+  const totalCount = total ?? posts.length
+  return c.json({
+    ok: true,
+    data: posts,
+    total: totalCount,
+    limit: perPage,
+    offset,
+    hasMore: perPage ? offset + posts.length < totalCount : false,
+  })
+})
+
+// GET /api/posts/featured
+// Alias for GET /api/posts?featured=1 — the endpoint a homepage's featured
+// section consumes. Declared before `/:id` so "featured" is never an id.
+postsRoutes.get('/featured', async (c) => {
+  const repo = await getPostsRepo()
+  const perPage = normaliseLimit(c.req.query('limit'), null, 200)
+  const offset = normaliseOffset(c.req.query('offset'))
+  const [posts, total] = await Promise.all([
+    repo.getAll({ limit: perPage, offset, withContent: false, featured: true }),
+    typeof repo.count === 'function' ? repo.count({ featured: true }) : Promise.resolve(null),
+  ])
   const totalCount = total ?? posts.length
   return c.json({
     ok: true,
@@ -95,6 +119,7 @@ postsRoutes.post('/', requireAdmin, async (c) => {
       content: body.content || '',
       tags: body.tags || [],
       pinned: !!body.pinned,
+      featured: !!body.featured,
     })
     return c.json({ ok: true, data: post }, 201)
   } catch (e) {
@@ -128,6 +153,19 @@ postsRoutes.patch('/:id/pin', requireAdmin, async (c) => {
   return c.json({ ok: true, data: result })
 })
 
+// PATCH /api/posts/:id/feature (admin) — toggle the featured (精选) flag
+postsRoutes.patch('/:id/feature', requireAdmin, async (c) => {
+  const id = parseId(c.req.param('id'))
+  if (id === null) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
+  const repo = await getPostsRepo()
+  if (typeof repo.toggleFeatured !== 'function') {
+    return c.json({ ok: false, error: 'Feature is not supported by this storage backend', code: 'NOT_IMPLEMENTED' }, 501)
+  }
+  const result = await repo.toggleFeatured(id)
+  if (!result) return c.json({ ok: false, error: 'Post not found', code: 'NOT_FOUND' }, 404)
+  return c.json({ ok: true, data: result })
+})
+
 // DELETE /api/posts/:id (admin)
 postsRoutes.delete('/:id', requireAdmin, async (c) => {
   const id = parseId(c.req.param('id'))
@@ -139,7 +177,7 @@ postsRoutes.delete('/:id', requireAdmin, async (c) => {
 })
 
 // POST /api/posts/bulk (admin)
-//   { ids: number[], action: 'pin' | 'unpin' | 'delete' }
+//   { ids: number[], action: 'pin' | 'unpin' | 'feature' | 'unfeature' | 'delete' }
 postsRoutes.post('/bulk', requireAdmin, async (c) => {
   let body
   try { body = await c.req.json() } catch { body = {} }
@@ -150,7 +188,7 @@ postsRoutes.post('/bulk', requireAdmin, async (c) => {
   if (!ids.length) {
     return c.json({ ok: false, error: '请先选择要操作的文章', code: 'VALIDATION' }, 400)
   }
-  if (!['pin', 'unpin', 'delete'].includes(action)) {
+  if (!['pin', 'unpin', 'feature', 'unfeature', 'delete'].includes(action)) {
     return c.json({ ok: false, error: '不支持的批量操作', code: 'VALIDATION' }, 400)
   }
 
@@ -161,6 +199,13 @@ postsRoutes.post('/bulk', requireAdmin, async (c) => {
       return c.json({ ok: false, error: '当前存储不支持批量删除', code: 'NOT_IMPLEMENTED' }, 501)
     }
     return c.json({ ok: true, data: await repo.deleteMany(ids) })
+  }
+
+  if (action === 'feature' || action === 'unfeature') {
+    if (typeof repo.setFeaturedMany !== 'function') {
+      return c.json({ ok: false, error: '当前存储不支持批量精选', code: 'NOT_IMPLEMENTED' }, 501)
+    }
+    return c.json({ ok: true, data: await repo.setFeaturedMany(ids, action === 'feature') })
   }
 
   if (typeof repo.setPinnedMany !== 'function') {

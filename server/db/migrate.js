@@ -25,6 +25,7 @@ await sql`
     category   TEXT DEFAULT '',
     tags       TEXT DEFAULT '[]',
     pinned     BOOLEAN DEFAULT FALSE,
+    featured   BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
   )
 `
@@ -62,9 +63,19 @@ await sql`
   )
 `
 
+await sql`
+  CREATE TABLE IF NOT EXISTS media_meta (
+    url        TEXT PRIMARY KEY,
+    tags       TEXT DEFAULT '[]',
+    grp        TEXT DEFAULT '',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`
+
 /* ── Upgrade databases created by an older version ── */
 await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS tags     TEXT    DEFAULT '[]'`
 await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS pinned   BOOLEAN DEFAULT FALSE`
+await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT FALSE`
 await sql`ALTER TABLE posts   ADD COLUMN IF NOT EXISTS category TEXT    DEFAULT ''`
 await sql`ALTER TABLE moments ADD COLUMN IF NOT EXISTS tags   TEXT    DEFAULT '[]'`
 await sql`ALTER TABLE moments ADD COLUMN IF NOT EXISTS images TEXT    DEFAULT '[]'`

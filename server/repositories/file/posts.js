@@ -41,6 +41,7 @@ function parse(post, withContent = true) {
     category: post.category || '',
     tags: parseList(post.tags),
     pinned: !!post.pinned,
+    featured: !!post.featured,
   }
   if (withContent) out.content = post.content || ''
   return out
@@ -54,23 +55,25 @@ function sortPosts(a, b) {
 
 export const filePostsRepo = {
   /** `withContent` defaults to true — see the note in vercel/posts.js. */
-  async getAll({ limit, offset = 0, withContent = true, category, tag, year } = {}) {
+  async getAll({ limit, offset = 0, withContent = true, category, tag, year, featured } = {}) {
     const lim = normaliseLimit(limit, null, 200)
     const off = normaliseOffset(offset)
     let posts = (await readAll()).map(p => parse(p, withContent)).sort(sortPosts)
     if (category) posts = posts.filter(p => p.category === category)
     if (tag) posts = posts.filter(p => (p.tags || []).includes(tag))
     if (year) posts = posts.filter(p => String(p.date).startsWith(String(year)))
+    if (featured) posts = posts.filter(p => p.featured)
     if (lim) return posts.slice(off, off + lim)
     return off ? posts.slice(off) : posts
   },
 
   /** Total number of posts (honouring the same filters as getAll) — used for pagination metadata. */
-  async count({ category, tag, year } = {}) {
+  async count({ category, tag, year, featured } = {}) {
     let posts = await readAll()
     if (category) posts = posts.filter(p => String(p.category || '') === category)
     if (tag) posts = posts.filter(p => parseList(p.tags).includes(tag))
     if (year) posts = posts.filter(p => String(p.date || '').startsWith(String(year)))
+    if (featured) posts = posts.filter(p => p.featured)
     return posts.length
   },
 
@@ -126,6 +129,7 @@ export const filePostsRepo = {
       content: data.content || '',
       tags: parseList(data.tags),
       pinned: !!data.pinned,
+      featured: !!data.featured,
     }
     posts.push(post)
     await writeAll(posts)
@@ -147,6 +151,7 @@ export const filePostsRepo = {
       content: data.content ?? current.content,
       tags: data.tags !== undefined ? parseList(data.tags) : parseList(current.tags),
       pinned: data.pinned !== undefined ? !!data.pinned : !!current.pinned,
+      featured: data.featured !== undefined ? !!data.featured : !!current.featured,
     }
     await writeAll(posts)
     return parse(posts[idx])
@@ -159,6 +164,16 @@ export const filePostsRepo = {
     posts[idx].pinned = !posts[idx].pinned
     await writeAll(posts)
     return { pinned: !!posts[idx].pinned }
+  },
+
+  /** Toggle the featured (精选) flag. */
+  async toggleFeatured(id) {
+    const posts = await readAll()
+    const idx = posts.findIndex(p => p.id === id)
+    if (idx === -1) return null
+    posts[idx].featured = !posts[idx].featured
+    await writeAll(posts)
+    return { featured: !!posts[idx].featured }
   },
 
   async delete(id) {
@@ -182,6 +197,21 @@ export const filePostsRepo = {
       if (!set.has(Number(p.id))) return p
       updated++
       return { ...p, pinned: !!pinned }
+    })
+    if (updated) await writeAll(next)
+    return { updated }
+  },
+
+  /** Bulk-set `featured` (精选). Same tolerance for unknown ids as setPinnedMany. */
+  async setFeaturedMany(ids, featured) {
+    const set = new Set((ids || []).map(Number).filter(Number.isFinite))
+    if (!set.size) return { updated: 0 }
+    const posts = await readAll()
+    let updated = 0
+    const next = posts.map((p) => {
+      if (!set.has(Number(p.id))) return p
+      updated++
+      return { ...p, featured: !!featured }
     })
     if (updated) await writeAll(next)
     return { updated }

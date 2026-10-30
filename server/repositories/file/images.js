@@ -1,10 +1,30 @@
-import { writeFile, mkdir, readdir, stat, unlink } from 'node:fs/promises'
+import { writeFile, mkdir, readdir, stat, unlink, readFile } from 'node:fs/promises'
 import { join, dirname, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import crypto from 'node:crypto'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const UPLOAD_DIR = join(__dirname, '..', '..', '..', 'public', 'uploads')
+const META_FILE = join(__dirname, '..', '..', 'data', 'media-meta.json')
+
+async function readMetaMap() {
+  try {
+    const raw = await readFile(META_FILE, 'utf-8')
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed
+  } catch {}
+  return {}
+}
+
+async function writeMetaMap(map) {
+  await writeFile(META_FILE, JSON.stringify(map, null, 2), 'utf-8')
+}
+
+function normalizeMeta(raw) {
+  const tags = Array.isArray(raw?.tags) ? raw.tags.map(String).filter(Boolean).slice(0, 20) : []
+  const group = String(raw?.group ?? raw?.grp ?? '').trim().slice(0, 40)
+  return { tags, group, updated_at: raw?.updated_at || new Date().toISOString() }
+}
 
 const EXT_BY_MIME = {
   'image/jpeg': 'jpg',
@@ -66,5 +86,53 @@ export const fileImagesRepo = {
     if (!name) throw new Error('非法的图片路径')
     await unlink(join(UPLOAD_DIR, name))
     return { deleted: url }
+  },
+
+  /** Total file count and combined size across the whole uploads folder. */
+  async summarize() {
+    let names = []
+    try { names = await readdir(UPLOAD_DIR) } catch { return { count: 0, size: 0 } }
+    let count = 0
+    let size = 0
+    for (const name of names) {
+      try {
+        const st = await stat(join(UPLOAD_DIR, name))
+        if (st.isFile()) { count++; size += st.size }
+      } catch {}
+    }
+    return { count, size }
+  },
+
+  /** Get metadata for a list of URLs. Returns a Map(url → {tags,group}). */
+  async getMetas(urls) {
+    const map = await readMetaMap()
+    const out = new Map()
+    for (const url of urls) out.set(url, normalizeMeta(map[url]))
+    return out
+  },
+
+  /** Upsert metadata for a single image URL. */
+  async setMeta(url, patch) {
+    const map = await readMetaMap()
+    const existing = normalizeMeta(map[url] || {})
+    const next = {
+      tags: patch.tags !== undefined ? patch.tags : existing.tags,
+      group: patch.group !== undefined ? patch.group : existing.group,
+      updated_at: new Date().toISOString(),
+    }
+    map[url] = next
+    await writeMetaMap(map)
+    return { url, ...next }
+  },
+
+  /** Distinct non-empty groups across the whole store. */
+  async listGroups() {
+    const map = await readMetaMap()
+    const groups = new Set()
+    for (const m of Object.values(map)) {
+      const g = String(m?.group ?? m?.grp ?? '').trim()
+      if (g) groups.add(g)
+    }
+    return [...groups].sort()
   },
 }

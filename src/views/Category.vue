@@ -87,20 +87,23 @@ const children = computed(() =>
 )
 
 async function load() {
+  const requestedPath = path.value
   loading.value = true
   try {
     const [page, tax] = await Promise.all([
-      getPosts({ category: path.value, limit: 200 }),
+      getPosts({ category: requestedPath, limit: 200 }),
       getTaxonomy().catch(() => ({ categories: [], tags: [] })),
     ])
+    if (requestedPath !== path.value) return
     posts.value = page.items
     total.value = page.total
     taxonomy.value = tax
   } catch {
+    if (requestedPath !== path.value) return
     posts.value = []
     total.value = 0
   } finally {
-    loading.value = false
+    if (requestedPath === path.value) loading.value = false
   }
 }
 
@@ -119,5 +122,6 @@ onActivated(() => {
     description: `分类「${path.value || '全部'}」下的全部文章。`,
     path: path.value ? `/category/${path.value.split('/').map(encodeURIComponent).join('/')}` : '/category',
   })
+  if (!posts.value.length && !loading.value) load()
 })
 </script>

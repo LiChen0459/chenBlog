@@ -97,7 +97,7 @@ import Icon from '../components/Icon.vue'
 import ShareBar from '../components/ShareBar.vue'
 import { getPost } from '../api/posts.js'
 import { blogPosts } from '../data/posts.js'
-import { renderMarkdown, slugify } from '../utils/markdown.js'
+import { renderMarkdown, loadMarkdownRenderer, slugify } from '../utils/markdown.js'
 import { bindCodeCopy } from '../utils/codeCopy.js'
 import { setSeo, articleJsonLd } from '../utils/seo.js'
 import { normCategory, categoryLink } from '../utils/category.js'
@@ -111,6 +111,7 @@ const activeId = ref('')
 const outlineOpen = ref(false)
 
 const renderedContent = computed(() => renderMarkdown(post.value?.content || ''))
+let renderSeq = 0
 
 /** Walk the rendered article, assign ids to h2/h3 and build the outline list. */
 function buildOutline() {
@@ -170,11 +171,14 @@ async function loadPost() {
     return
   }
   loading.value = true
+  const seq = ++renderSeq
   try {
     post.value = await getPost(id)
   } catch {
     post.value = blogPosts.find(p => p.id === id) || null
   }
+  await loadMarkdownRenderer()
+  if (seq !== renderSeq) return
   loading.value = false
   if (post.value) {
     applySeo()

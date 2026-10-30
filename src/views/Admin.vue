@@ -244,6 +244,14 @@
                   <Icon name="bookmark" :size="13" />
                   取消置顶
                 </button>
+                <button class="mui-btn text" :disabled="isBusy('bulk-posts')" @click="runBulkPosts('feature')">
+                  <Icon name="star" :size="13" fill="currentColor" />
+                  设为精选
+                </button>
+                <button class="mui-btn text" :disabled="isBusy('bulk-posts')" @click="runBulkPosts('unfeature')">
+                  <Icon name="star" :size="13" />
+                  取消精选
+                </button>
                 <button class="mui-btn text danger" :disabled="isBusy('bulk-posts')" @click="runBulkPosts('delete')">
                   <Icon v-if="isBusy('bulk-posts')" name="loader" :size="13" class="spin" />
                   <Icon v-else name="trash" :size="13" />
@@ -278,6 +286,17 @@
             <span class="date">{{ p.date }}</span>
             <span class="summary">{{ p.summary || '—' }}</span>
             <span class="actions">
+              <button
+                class="mui-btn text"
+                :class="{ 'is-featured': p.featured }"
+                :title="p.featured ? '取消精选' : '设为精选（首页精选位）'"
+                :disabled="isBusy(`feature-${p.id}`)"
+                @click="toggleFeatured(p.id)"
+              >
+                <Icon v-if="isBusy(`feature-${p.id}`)" name="loader" :size="13" class="spin" />
+                <Icon v-else name="star" :size="13" :fill="p.featured ? 'currentColor' : 'none'" />
+                {{ p.featured ? '已精选' : '精选' }}
+              </button>
               <button
                 class="mui-btn text"
                 :class="{ 'is-pinned': p.pinned }"
@@ -517,6 +536,10 @@
                 <span v-else>点击或拖拽上传图片（可多选）</span>
               </div>
               <input ref="fileInput" type="file" accept="image/*" multiple @change="onFileChange" hidden />
+              <button class="mui-btn text" @click="momentPickerOpen = true">
+                <Icon name="image" :size="14" />
+                从媒体库选择
+              </button>
 
               <div v-if="momentForm.images.length" class="upload-grid">
                 <div v-for="(src, i) in momentForm.images" :key="src + i" class="upload-thumb">
@@ -641,13 +664,50 @@
       <div v-else-if="nav === 'media'" key="media">
         <div class="page-heading-row">
           <h2 class="page-heading">媒体库</h2>
-          <button class="mui-btn outlined" :disabled="isBusy('media-load')" @click="loadMedia(true)">
-            <Icon v-if="isBusy('media-load')" name="loader" :size="14" class="spin" />
-            <Icon v-else name="refresh" :size="14" />
-            刷新
-          </button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="mui-btn outlined" :disabled="mediaUploading" @click="mediaFileInput?.click()">
+              <Icon v-if="mediaUploading" name="loader" :size="14" class="spin" />
+              <Icon v-else name="upload" :size="14" />
+              上传
+            </button>
+            <input ref="mediaFileInput" type="file" accept="image/*" multiple @change="onMediaUpload" hidden />
+            <button class="mui-btn outlined" :disabled="isBusy('media-load')" @click="loadMedia(true)">
+              <Icon v-if="isBusy('media-load')" name="loader" :size="14" class="spin" />
+              <Icon v-else name="refresh" :size="14" />
+              刷新
+            </button>
+          </div>
         </div>
         <p class="media-hint">文章与动态里上传过的全部图片。删除前先看「使用中」标注——删掉后引用它的位置会显示裂图。</p>
+
+        <div v-if="mediaConfigError && !media.length" class="media-config-error">
+          <Icon name="alert-circle" :size="16" class="media-config-icon" />
+          <div class="media-config-body">
+            <p class="media-config-title">图片存储未连通</p>
+            <p class="media-config-msg">{{ mediaConfigError }}</p>
+            <button class="mui-btn outlined" :disabled="mediaLoading" @click="loadMedia(true)">
+              <Icon v-if="mediaLoading" name="loader" :size="14" class="spin" />
+              <Icon v-else name="refresh" :size="14" />
+              重试
+            </button>
+          </div>
+        </div>
+
+        <div v-else-if="mediaTotal !== null" class="media-summary">
+          <span>共 {{ mediaTotal }} 张图片</span>
+          <span class="media-summary-sep">·</span>
+          <span>总占用 {{ mediaSize(mediaTotalSize) }}</span>
+          <span class="media-summary-sep">·</span>
+          <span>已加载 {{ media.length }} 张，{{ mediaUnusedCount() }} 张未使用</span>
+        </div>
+
+        <div v-if="mediaGroupOptions.length" class="media-filters">
+          <select v-model="mediaFilterGroup" class="media-select" @change="onMediaFilterChange">
+            <option value="">全部分组</option>
+            <option v-for="g in mediaGroupOptions" :key="g" :value="g">{{ g }}</option>
+          </select>
+          <span v-if="mediaFilterGroup" class="media-filter-count">已筛选 {{ mediaVisible.length }} 张</span>
+        </div>
 
         <div v-if="mediaLoading && !media.length" class="media-grid" aria-hidden="true">
           <div v-for="n in 6" :key="`msk-${n}`" class="media-card media-sk">
@@ -656,8 +716,8 @@
           </div>
         </div>
 
-        <div v-else-if="media.length" class="media-grid">
-          <div v-for="item in media" :key="item.url" class="media-card">
+        <div v-else-if="mediaVisible.length" class="media-grid">
+          <div v-for="item in mediaVisible" :key="item.url" class="media-card">
             <a class="media-thumb" :href="item.url" target="_blank" rel="noopener" :title="mediaName(item)">
               <img :src="item.url" :alt="mediaName(item)" loading="lazy" />
             </a>
@@ -680,6 +740,22 @@
                 </a>
               </div>
               <p v-else class="media-unused">未使用</p>
+
+              <!-- Inline tag / group editing -->
+              <div class="media-edit">
+                <input
+                  :value="(item.meta?.tags || []).join(', ')"
+                  class="media-edit-input"
+                  placeholder="标签，逗号分隔"
+                  @change="(e) => saveMediaMeta(item, { tags: e.target.value })"
+                />
+                <input
+                  :value="item.meta?.group || ''"
+                  class="media-edit-input"
+                  placeholder="分组"
+                  @change="(e) => saveMediaMeta(item, { group: e.target.value })"
+                />
+              </div>
             </div>
             <button
               class="mui-btn text danger media-del"
@@ -799,6 +875,8 @@
       </div>
       </Transition>
 
+      <MediaPicker :open="momentPickerOpen" @close="momentPickerOpen = false" @select="insertMomentFromPicker" />
+
       <!-- 提示 -->
       <transition name="toast">
         <div v-if="toast.show" class="toast" :class="toast.type">{{ toast.msg }}</div>
@@ -813,7 +891,8 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } 
 import Icon from '../components/Icon.vue'
 import { admin, saveCaptcha, clearCaptcha } from '../api/admin.js'
 import { momentImages } from '../utils/moment.js'
-import { getMedia, deleteMedia } from '../api/media.js'
+import { getMedia, deleteMedia, setMediaMeta } from '../api/media.js'
+import MediaPicker from '../components/MediaPicker.vue'
 
 /* ── Lazy editor ──
    Toast UI editor is ~573 kB JS + 183 kB CSS. Importing it at module scope meant
@@ -985,11 +1064,36 @@ const mediaCursor = ref(null)
 const mediaHasMore = ref(false)
 const mediaLoading = ref(false)
 const mediaLoaded = ref(false)
+/** Store-wide totals from the server (`summarize()`), shown in the summary bar. */
+const mediaTotal = ref(null)
+const mediaTotalSize = ref(null)
+/** Set when the store itself is unreachable (e.g. missing BLOB_READ_WRITE_TOKEN) — shown as a persistent hint, not a toast. */
+const mediaConfigError = ref('')
+const mediaUploading = ref(false)
+const mediaFileInput = ref(null)
+const mediaFilterGroup = ref('')
+
+/** Groups derived from loaded items' meta (client-side). */
+const mediaGroupOptions = computed(() => {
+  const s = new Set()
+  for (const it of media.value) {
+    const g = String(it.meta?.group || '').trim()
+    if (g) s.add(g)
+  }
+  return [...s].sort()
+})
+
+/** Items visible after group filter. */
+const mediaVisible = computed(() => {
+  if (!mediaFilterGroup.value) return media.value
+  return media.value.filter((it) => (it.meta?.group || '') === mediaFilterGroup.value)
+})
 
 /** Load a page; `reset` restarts from the newest item. */
 async function loadMedia(reset) {
   if (mediaLoading.value) return
   mediaLoading.value = true
+  mediaConfigError.value = ''
   try {
     const page = await getMedia({
       cursor: reset ? undefined : mediaCursor.value || undefined,
@@ -999,8 +1103,14 @@ async function loadMedia(reset) {
     media.value = reset ? items : [...media.value, ...items]
     mediaCursor.value = page.cursor ?? null
     mediaHasMore.value = !!page.hasMore
+    // Totals describe the whole store and stay constant across pages.
+    mediaTotal.value = page.total ?? null
+    mediaTotalSize.value = page.totalSize ?? null
   } catch (e) {
-    toastMsg(`媒体库加载失败：${e.message}`, 'error')
+    // Token/env problems persist across retries — the message already says
+    // how to fix them, so surface it in place instead of a vanishing toast.
+    if (e.code === 'BLOB_TOKEN_MISSING') mediaConfigError.value = e.message
+    else toastMsg(`媒体库加载失败：${e.message}`, 'error')
   } finally {
     mediaLoading.value = false
   }
@@ -1045,6 +1155,51 @@ function confirmDelMedia(item) {
 function mediaName(item) {
   const p = String(item.pathname || item.url || '')
   try { return decodeURIComponent(p.split('/').pop() || p) } catch { return p.split('/').pop() || p }
+}
+
+/** How many of the currently-loaded images are referenced nowhere. */
+function mediaUnusedCount() {
+  return media.value.filter((m) => !(m.usedIn && m.usedIn.length)).length
+}
+
+/* ── Media upload (pre-staging) ── */
+async function onMediaUpload(e) {
+  const files = Array.from(e.target.files || []).filter(Boolean)
+  if (!files.length) return
+  mediaUploading.value = true
+  try {
+    const urls = await admin.uploadImages(files)
+    toastMsg(`已上传 ${urls.length} 张图片`)
+    // Refresh so the new items appear with correct meta.
+    await loadMedia(true)
+  } catch (err) {
+    toastMsg(`上传失败：${err.message}`, 'error')
+  } finally {
+    mediaUploading.value = false
+    if (mediaFileInput.value) mediaFileInput.value.value = ''
+  }
+}
+
+function onMediaFilterChange() {
+  // If the filtered view is empty but there are more pages, keep loading
+  // until we hit something in this group or exhaust the store.
+  if (mediaFilterGroup.value && !mediaVisible.value.length && mediaHasMore.value) {
+    loadMedia(false)
+  }
+}
+
+async function saveMediaMeta(item, patch) {
+  const tags = patch.tags !== undefined
+    ? String(patch.tags).split(/[,，]/).map((s) => s.trim()).filter(Boolean).slice(0, 20)
+    : (item.meta?.tags || [])
+  const group = patch.group !== undefined ? String(patch.group).trim().slice(0, 40) : (item.meta?.group || '')
+  try {
+    const meta = await setMediaMeta(item.url, { tags, group })
+    item.meta = meta
+    toastMsg('已保存')
+  } catch (e) {
+    toastMsg(`保存失败：${e.message}`, 'error')
+  }
 }
 
 function mediaSize(bytes) {
@@ -1144,7 +1299,7 @@ function pruneSelection() {
 async function runBulkPosts(action) {
   const ids = selPostIds.value
   if (!ids.length) return
-  const verb = { pin: '置顶', unpin: '取消置顶', delete: '删除' }[action]
+  const verb = { pin: '置顶', unpin: '取消置顶', feature: '设为精选', unfeature: '取消精选', delete: '删除' }[action]
 
   const run = () => withBusy('bulk-posts', async () => {
     try {
@@ -1323,6 +1478,16 @@ async function togglePin(id) {
   })
 }
 
+async function toggleFeatured(id) {
+  await withBusy(`feature-${id}`, async () => {
+    try {
+      await admin.toggleFeatured(id)
+      await loadPosts()
+      toastMsg('精选状态已更新')
+    } catch (e) { toastMsg(e.message, 'error') }
+  })
+}
+
 async function loadPosts() {
   try { posts.value = await admin.getPosts() } catch (e) { toastMsg(e.message, 'error') }
 }
@@ -1334,6 +1499,13 @@ const momentForm = reactive({ date: '', time: '', content: '', images: [], tags:
 const momentTagInput = ref('')
 const uploading = ref(false)
 const fileInput = ref(null)
+const momentPickerOpen = ref(false)
+
+function insertMomentFromPicker(url) {
+  if (!url) return
+  if (!momentForm.images.includes(url)) momentForm.images.push(url)
+  momentPickerOpen.value = false
+}
 
 function pickFiles() {
   if (!uploading.value) fileInput.value?.click()
@@ -1955,6 +2127,7 @@ watch(showPostForm, (v) => {
 .mui-btn.text { background: transparent; color: var(--accent-light); padding: 6px 10px; font-size: 0.8rem; }
 .mui-btn.text:hover { background: var(--accent-dim); }
 .mui-btn.text.is-pinned { color: var(--accent); font-weight: 600; }
+.mui-btn.text.is-featured { color: #f59e0b; font-weight: 600; }
 .mui-btn.text.danger { color: #ef4444; }
 .mui-btn.text.danger:hover { background: rgba(239, 68, 68, 0.08); }
 .mui-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -2186,6 +2359,30 @@ watch(showPostForm, (v) => {
 
 /* ── Media library ── */
 .media-hint { font-size: 0.8rem; color: var(--text-muted); margin: -6px 0 18px; line-height: 1.6; }
+.media-config-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-hover);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+.media-config-icon { color: #ef4444; flex: none; margin-top: 2px; }
+.media-config-body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.media-config-title { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
+.media-config-msg { margin: 0; font-size: 0.8rem; line-height: 1.7; color: var(--text-secondary); }
+.media-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 18px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.media-summary-sep { color: var(--text-muted); }
 .media-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -2228,6 +2425,31 @@ watch(showPostForm, (v) => {
 .media-unused { margin: 2px 0 0; font-size: 0.68rem; color: var(--text-muted); }
 .media-del { align-self: flex-start; margin: 0 14px 12px; }
 .media-sk { height: 210px; padding: 0; }
+
+.media-filters {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 14px;
+}
+.media-select {
+  padding: 6px 10px; font-size: 0.8rem;
+  border: 1px solid var(--glass-border); border-radius: 8px;
+  background: var(--bg-input); color: var(--text-primary);
+  min-width: 140px;
+}
+.media-filter-count { font-size: 0.75rem; color: var(--text-muted); }
+
+.media-edit {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 4px;
+}
+.media-edit-input {
+  padding: 5px 8px; font-size: 0.72rem;
+  border: 1px solid var(--glass-border); border-radius: 6px;
+  background: var(--bg-input); color: var(--text-primary);
+  font-family: inherit;
+}
+.media-edit-input:focus { outline: none; border-color: var(--accent-2); }
+
 @media (max-width: 768px) {
   .media-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 }

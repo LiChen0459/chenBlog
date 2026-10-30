@@ -870,8 +870,12 @@ img.lazy-img[loading] {
   .brand-text { display: none; }
 
   .sidebar-footer, .sidebar-copy, .sidebar-admin-link { display: none; }
-  .sidebar-nav { flex-direction: row; gap: 2px; flex: 1; justify-content: center; }
-  .sidebar-nav a { padding: 7px 9px; font-size: 0.76rem; gap: 6px; }
+  .sidebar-nav { flex-direction: row; gap: 1px; flex: 1; justify-content: space-between; min-width: 0; }
+  .sidebar-nav a {
+    flex: 1 1 0; min-width: 0; min-height: 48px; padding: 4px 1px;
+    flex-direction: column; justify-content: center; gap: 1px;
+    font-size: 0.65rem; line-height: 1.1; text-align: center;
+  }
   .sidebar-nav a .icon { width: 15px; height: 15px; }
 
   .sidebar-theme-btn {
@@ -890,11 +894,9 @@ img.lazy-img[loading] {
   .content-inner { max-width: 100%; }
   .mobile-footer { display: block; }
 
-  /* Six nav links must fit the top bar on any phone width — let it scroll
-     rather than cramping labels. */
-  .sidebar-nav { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
-  .sidebar-nav::-webkit-scrollbar { display: none; }
-  .sidebar-nav a { flex-shrink: 0; padding: 7px 8px; font-size: 0.74rem; gap: 5px; }
+  /* Keep all six labeled destinations visible in the top bar. */
+  .sidebar-nav { overflow: visible; }
+  .sidebar-nav a { flex-shrink: 1; white-space: nowrap; }
 
   .hero { padding: 16px 0 32px; }
   .hero-title { font-size: 2rem; }
@@ -932,8 +934,10 @@ img.lazy-img[loading] {
 
 /* ── Very small phones ── */
 @media (max-width: 380px) {
-  .sidebar-nav a span.nav-label { display: none; }
-  .sidebar-nav a { padding: 8px 10px; }
+  .sidebar { padding-right: 6px; padding-left: 6px; }
+  .sidebar-brand { margin-right: 4px; }
+  .sidebar-theme-btn { margin-left: 2px; width: 32px; height: 32px; }
+  .sidebar-nav a { font-size: 0.59rem; }
   .moment-gallery.count-3 { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -1068,7 +1072,9 @@ img.lazy-img[loading] {
    this section owns the chrome: bar, gutter, copy button, scrolling.
    ═══════════════════════════════════════════ */
 .code-block {
-  margin: 1.4em 0;
+  width: calc(100% - 24px);
+  max-width: 680px;
+  margin: 1.4em auto;
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
@@ -1136,6 +1142,7 @@ img.lazy-img[loading] {
   background: var(--code-bg);
 }
 @media (max-width: 768px) {
+  .code-block { width: 100%; }
   .code-line { padding: 0 12px; }
   .code-line::before { width: 1.4em; margin-right: 10px; }
 }
@@ -1445,11 +1452,18 @@ img.lazy-img[loading] {
   background: var(--accent-dim);
 }
 
-.mobile-footer-links {
-  display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center;
-  margin-top: 6px;
+/* Small, clear retry state when a paginated request fails. */
+.load-more-error {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px;
+  color: var(--text-secondary); font-size: 0.84rem;
 }
-.mobile-footer-links a {
-  color: var(--text-secondary); text-decoration: none; font-size: 0.78rem;
+.load-more-retry {
+  border: 1px solid var(--border-hover); border-radius: 999px;
+  padding: 5px 12px; background: var(--bg-card); color: var(--accent-ink);
+  font: inherit; cursor: pointer;
 }
-.mobile-footer-links a:hover { color: var(--accent-ink); }
+.load-more-retry:hover { border-color: var(--accent); background: var(--accent-dim); }
+
+@media (max-width: 768px) {
+  .sidebar-nav a.router-link-active { color: var(--accent-ink); background: var(--accent-dim); }
+}

@@ -32,7 +32,9 @@ export async function buildUsageIndex(urls) {
 
   const [posts, moments, pages] = await Promise.all([
     getPostsRepo().then((r) => r.getAll({ withContent: true, limit: 500 })),
-    getMomentsRepo().then((r) => r.getAll({ limit: 500 })),
+    // Hidden moments are still "in use" — an admin purging the library must see
+    // them. `buildUsageIndex` runs behind auth, so including them is safe.
+    getMomentsRepo().then((r) => r.getAll({ limit: 500, includeHidden: true })),
     getPagesRepo().then((r) => r.getAll()),
   ])
 
@@ -70,16 +72,24 @@ mediaRoutes.get('/', requireAdmin, async (c) => {
     const limit = normaliseLimit(c.req.query('limit'), 100, 500)
     const cursor = c.req.query('cursor') || undefined
     const { items, cursor: next, hasMore } = await repo.list({ cursor, limit })
+    const summary = await repo.summarize()
     const usage = await buildUsageIndex(items.map((i) => i.url))
+    const metaMap = await repo.getMetas(items.map((i) => i.url))
     return c.json({
       ok: true,
-      data: items.map((it) => ({ ...it, usedIn: usage.get(it.url) || [] })),
+      data: items.map((it) => ({
+        ...it,
+        usedIn: usage.get(it.url) || [],
+        meta: metaMap.get(it.url) || { tags: [], group: '' },
+      })),
       cursor: next ?? null,
       hasMore: !!hasMore,
+      total: summary.count,
+      totalSize: summary.size,
     })
   } catch (e) {
     console.error('GET /api/media error:', e)
-    return c.json({ ok: false, error: e.message || '媒体库加载失败' }, 500)
+    return c.json({ ok: false, error: e.message || '媒体库加载失败', code: e.code || 'MEDIA_ERROR' }, 500)
   }
 })
 
@@ -97,6 +107,31 @@ mediaRoutes.delete('/', requireAdmin, async (c) => {
     return c.json({ ok: true, data: { deleted: url } })
   } catch (e) {
     console.error('DELETE /api/media error:', e)
-    return c.json({ ok: false, error: e.message || '删除失败' }, 500)
+    return c.json({ ok: false, error: e.message || '删除失败', code: e.code || 'MEDIA_ERROR' }, 500)
+  }
+})
+
+/**
+ * PUT /api/media/meta (admin) — attach tags and a group label to an image.
+ * Body: { url, tags: string[], group: string }.
+ */
+mediaRoutes.put('/meta', requireAdmin, async (c) => {
+  let body
+  try { body = await c.req.json() } catch {
+    return c.json({ ok: false, error: '请求体格式不正确', code: 'BAD_REQUEST' }, 400)
+  }
+  const url = body?.url
+  if (!url || typeof url !== 'string') {
+    return c.json({ ok: false, error: '缺少 url 参数', code: 'BAD_REQUEST' }, 400)
+  }
+  const tags = Array.isArray(body.tags) ? body.tags.map(String).filter(Boolean).slice(0, 20) : []
+  const group = typeof body.group === 'string' ? body.group.trim().slice(0, 40) : ''
+  try {
+    const repo = await getImagesRepo()
+    const meta = await repo.setMeta(url, { tags, group })
+    return c.json({ ok: true, data: meta })
+  } catch (e) {
+    console.error('PUT /api/media/meta error:', e)
+    return c.json({ ok: false, error: e.message || '保存失败' }, 500)
   }
 })

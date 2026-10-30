@@ -12,11 +12,14 @@ process.env.ADMIN_TOKEN = 'test-admin-token'
 
 const postsFile = new URL('../data/posts.json', import.meta.url)
 const momentsFile = new URL('../data/moments.json', import.meta.url)
+const metaFile = new URL('../data/media-meta.json', import.meta.url)
 const uploadsDir = new URL('../../public/uploads/', import.meta.url)
 const testFile = new URL('media-test-image.jpg', uploadsDir)
 
 const postsBackup = await readFile(postsFile, 'utf-8')
 const momentsBackup = await readFile(momentsFile, 'utf-8')
+let metaBackup = null
+try { metaBackup = await readFile(metaFile, 'utf-8') } catch {}
 
 // A tiny valid-enough JPEG payload (only size/mime matter here).
 const JPEG = Buffer.from(
@@ -43,6 +46,7 @@ const TEST_URL = '/uploads/media-test-image.jpg'
 
 let createdPostId = null
 let createdMomentId = null
+let createdHiddenMomentId = null
 
 try {
   console.log('\n── media library ──')
@@ -73,6 +77,14 @@ try {
   createdMomentId = r.body?.data?.id ?? null
   check('seed moment created', r.status === 201 && createdMomentId !== null, JSON.stringify(r.body))
 
+  // a SECOND moment, hidden — its usage must still be detected
+  r = await req('/api/moments', {
+    method: 'POST', headers: { ...AUTH, ...J },
+    body: JSON.stringify({ content: '隐藏动态配图', images: [TEST_URL], hidden: true }),
+  })
+  createdHiddenMomentId = r.body?.data?.id ?? null
+  check('seed hidden moment created', r.status === 201 && createdHiddenMomentId !== null, JSON.stringify(r.body))
+
   // ---- list + usage index ----
   r = await req('/api/media', { headers: AUTH })
   check('list → 200', r.status === 200, JSON.stringify(r.body).slice(0, 120))
@@ -81,8 +93,26 @@ try {
   check('size is reported', item?.size > 0, String(item?.size))
   const used = (item?.usedIn ?? []).map((u) => `${u.type}:${u.id}`)
   check('usage points at the post', used.includes(`post:${createdPostId}`), JSON.stringify(item?.usedIn))
-  check('usage points at the moment', used.includes(`moment:${createdMomentId}`), JSON.stringify(item?.usedIn))
+  check('usage points at the (visible) moment', used.includes(`moment:${createdMomentId}`), JSON.stringify(item?.usedIn))
+  check('usage points at the hidden moment', used.includes(`moment:${createdHiddenMomentId}`), JSON.stringify(item?.usedIn))
   check('usage entry carries a title', (item?.usedIn ?? []).every((u) => !!u.title))
+  check('response carries store total (count)', typeof r.body?.total === 'number', JSON.stringify(r.body?.total))
+  check('response carries store totalSize', typeof r.body?.totalSize === 'number', JSON.stringify(r.body?.totalSize))
+
+  // ---- meta: tags / group ----
+  check('meta defaults present', item?.meta?.tags !== undefined && item?.meta?.group !== undefined, JSON.stringify(item?.meta))
+
+  r = await req('/api/media/meta', {
+    method: 'PUT', headers: { ...AUTH, ...J },
+    body: JSON.stringify({ url: TEST_URL, tags: ['测试', '封面'], group: '测试分组' }),
+  })
+  check('put meta → 200', r.status === 200, JSON.stringify(r.body))
+  check('meta persisted tags', r.body?.data?.tags?.includes('测试'), JSON.stringify(r.body?.data))
+  check('meta persisted group', r.body?.data?.group === '测试分组', JSON.stringify(r.body?.data))
+
+  r = await req('/api/media', { headers: AUTH })
+  const item2 = (r.body?.data ?? []).find((i) => i.url === TEST_URL)
+  check('list reflects saved meta', item2?.meta?.group === '测试分组', JSON.stringify(item2?.meta))
 
   // ---- delete ----
   r = await req('/api/media', { method: 'DELETE', headers: AUTH })
@@ -110,6 +140,9 @@ try {
   if (createdMomentId !== null) {
     await req(`/api/moments/${createdMomentId}`, { method: 'DELETE', headers: AUTH })
   }
+  if (createdHiddenMomentId !== null) {
+    await req(`/api/moments/${createdHiddenMomentId}`, { method: 'DELETE', headers: AUTH })
+  }
 } catch (e) {
   fail++
   console.log('  ❌ threw:', e.stack)
@@ -117,6 +150,8 @@ try {
   await rm(testFile, { force: true })
   await writeFile(postsFile, postsBackup, 'utf-8')
   await writeFile(momentsFile, momentsBackup, 'utf-8')
+  if (metaBackup !== null) await writeFile(metaFile, metaBackup, 'utf-8')
+  else try { await rm(metaFile, { force: true }) } catch {}
   console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} passed, ${fail} failed — data restored.\n`)
   process.exit(fail === 0 ? 0 : 1)
 }

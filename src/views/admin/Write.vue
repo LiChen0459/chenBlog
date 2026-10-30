@@ -83,6 +83,12 @@
         <input ref="coverInput" type="file" accept="image/*" @change="onCoverFile" hidden />
         <img v-if="coverImage" :src="coverImage" class="preview-pic" alt="" />
 
+        <label>插入图片</label>
+        <button class="mui-btn outlined" @click="pickerOpen = true">
+          <Icon name="image" :size="14" />
+          从媒体库选择
+        </button>
+
         <hr />
         <button class="mui-btn text danger" v-if="editingId" @click="deletePost">
           <Icon name="trash" :size="13" />
@@ -90,6 +96,8 @@
         </button>
       </aside>
     </div>
+
+    <MediaPicker :open="pickerOpen" @close="pickerOpen = false" @select="insertFromPicker" />
   </div>
 </template>
 
@@ -97,6 +105,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Icon from '../../components/Icon.vue'
+import MediaPicker from '../../components/MediaPicker.vue'
 import { admin } from '../../api/admin.js'
 import Editor from '@toast-ui/editor'
 import '@toast-ui/editor/dist/toastui-editor.css'
@@ -124,6 +133,7 @@ const coverUploading = ref(false)
 const showMeta = ref(true)
 const publishing = ref(false)
 const errMsg = ref('')
+const pickerOpen = ref(false)
 
 const editorWrap = ref(null)
 const coverInput = ref(null)
@@ -160,6 +170,13 @@ function onCoverFile(e) {
   e.target.value = ''
 }
 function onCoverDrop(e) { e.preventDefault(); uploadCover(e.dataTransfer?.files?.[0]) }
+
+/* ── Insert image from media library ── */
+function insertFromPicker(url) {
+  if (!editor || !url) return
+  editor.insertText(`\n![图片](${url})\n`)
+  pickerOpen.value = false
+}
 
 /* ── Editor ── */
 const TOOLBAR = [

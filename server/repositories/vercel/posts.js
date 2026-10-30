@@ -15,7 +15,7 @@ function sql() {
   return neon(process.env.DATABASE_URL)
 }
 
-const LIST_COLS = 'id, title, date, summary, category, tags, pinned'
+const LIST_COLS = 'id, title, date, summary, category, tags, pinned, featured'
 const FULL_COLS = `${LIST_COLS}, content`
 
 /**
@@ -32,6 +32,7 @@ function parse(row, withContent = true) {
     category: row.category || '',
     tags: parseList(row.tags),
     pinned: !!row.pinned,
+    featured: !!row.featured,
   }
   if (withContent) post.content = row.content || ''
   return post
@@ -42,7 +43,7 @@ function parse(row, withContent = true) {
  * plus the matching parameter list — callers pass both to sql().query so the
  * driver never has to infer a Postgres array type.
  */
-function buildFilter({ category, tag, year }) {
+function buildFilter({ category, tag, year, featured }) {
   const clauses = []
   const params = []
   if (category) {
@@ -60,7 +61,26 @@ function buildFilter({ category, tag, year }) {
     params.push(`${Number(year) + 1}-01-01`)
     clauses.push(`date < $${params.length}::date`)
   }
+  // `featured IS TRUE` rather than `= TRUE` so NULL rows never match.
+  if (featured) {
+    clauses.push(`featured IS TRUE`)
+  }
   return { where: clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '', params }
+}
+
+/**
+ * `featured` was added after the first release. LIST_COLS selects it by name,
+ * so a database that has not been migrated would fail *every* list query with
+ * "column does not exist". The column is therefore added lazily (idempotent
+ * `ADD COLUMN IF NOT EXISTS`, cached per instance) — the same self-healing
+ * pattern the images repo uses for `media_meta`. `npm run db:migrate` remains
+ * the canonical path.
+ */
+let featuredColumnReady = false
+async function ensureFeaturedColumn() {
+  if (featuredColumnReady) return
+  await sql()`ALTER TABLE posts ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT FALSE`
+  featuredColumnReady = true
 }
 
 export const vercelPostsRepo = {
@@ -72,13 +92,14 @@ export const vercelPostsRepo = {
    * Optional filters (all AND-ed): `category` (exact path, e.g. "技术/前端"),
    * `tag`, `year`.
    */
-  async getAll({ limit, offset = 0, withContent = true, category, tag, year } = {}) {
+  async getAll({ limit, offset = 0, withContent = true, category, tag, year, featured } = {}) {
     const lim = normaliseLimit(limit, null, 200)
     const off = normaliseOffset(offset)
 
+    await ensureFeaturedColumn()
     const params = []
     let text = `SELECT ${withContent ? FULL_COLS : LIST_COLS} FROM posts`
-    const filter = buildFilter({ category, tag, year })
+    const filter = buildFilter({ category, tag, year, featured })
     text += filter.where
     params.push(...filter.params)
     text += ` ORDER BY pinned DESC, date DESC`
@@ -90,8 +111,9 @@ export const vercelPostsRepo = {
   },
 
   /** Total number of posts (honouring the same filters as getAll) — used for pagination metadata. */
-  async count({ category, tag, year } = {}) {
-    const filter = buildFilter({ category, tag, year })
+  async count({ category, tag, year, featured } = {}) {
+    await ensureFeaturedColumn()
+    const filter = buildFilter({ category, tag, year, featured })
     const rows = await sql().query(`SELECT COUNT(*)::int AS n FROM posts${filter.where}`, filter.params)
     return rows[0]?.n || 0
   },
@@ -132,15 +154,17 @@ export const vercelPostsRepo = {
   },
 
   async create(data) {
+    await ensureFeaturedColumn()
     const rows = await sql()`
-      INSERT INTO posts (title, date, summary, category, content, tags)
+      INSERT INTO posts (title, date, summary, category, content, tags, featured)
       VALUES (
         ${data.title || '无标题'},
         ${data.date || today()},
         ${data.summary || ''},
         ${normCategory(data.category)},
         ${data.content || ''},
-        ${JSON.stringify(parseList(data.tags))}
+        ${JSON.stringify(parseList(data.tags))},
+        ${!!data.featured}
       )
       RETURNING *
     `
@@ -150,13 +174,15 @@ export const vercelPostsRepo = {
   async update(id, data) {
     const existing = await this.getById(id)
     if (!existing) return null
+    await ensureFeaturedColumn()
     const rows = await sql()`
       UPDATE posts SET title    = ${data.title    ?? existing.title},
                        date     = ${data.date     ?? existing.date},
                        summary  = ${data.summary  ?? existing.summary},
                        category = ${normCategory(data.category ?? existing.category)},
                        content  = ${data.content  ?? existing.content},
-                       tags     = ${JSON.stringify(data.tags ?? existing.tags)}
+                       tags     = ${JSON.stringify(data.tags ?? existing.tags)},
+                       featured = ${data.featured !== undefined ? !!data.featured : !!existing.featured}
       WHERE id = ${id} RETURNING *
     `
     return parse(rows[0], true)
@@ -168,6 +194,16 @@ export const vercelPostsRepo = {
     `
     if (!rows.length) return null
     return { pinned: !!rows[0].pinned }
+  },
+
+  /** Toggle the featured (精选) flag. */
+  async toggleFeatured(id) {
+    await ensureFeaturedColumn()
+    const rows = await sql()`
+      UPDATE posts SET featured = NOT COALESCE(featured, FALSE) WHERE id = ${id} RETURNING featured
+    `
+    if (!rows.length) return null
+    return { featured: !!rows[0].featured }
   },
 
   async delete(id) {
@@ -187,6 +223,19 @@ export const vercelPostsRepo = {
     const rows = await sql().query(
       `UPDATE posts SET pinned = $1 WHERE id IN (${placeholders}) RETURNING id`,
       [!!pinned, ...list],
+    )
+    return { updated: rows.length }
+  },
+
+  /** Bulk-set `featured` (精选) in a single statement. */
+  async setFeaturedMany(ids, featured) {
+    const list = (ids || []).map(Number).filter(Number.isFinite)
+    if (!list.length) return { updated: 0 }
+    await ensureFeaturedColumn()
+    const placeholders = list.map((_, i) => `$${i + 2}`).join(', ')
+    const rows = await sql().query(
+      `UPDATE posts SET featured = $1 WHERE id IN (${placeholders}) RETURNING id`,
+      [!!featured, ...list],
     )
     return { updated: rows.length }
   },

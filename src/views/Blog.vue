@@ -64,12 +64,16 @@
 
     <!-- Pagination -->
     <div v-if="!loading && filteredPosts.length" class="load-more-wrap">
-      <button v-if="hasMore" class="load-more-btn" :disabled="loadingMore" @click="loadMore">
+      <button v-if="hasMore && !loadError" class="load-more-btn" :disabled="loadingMore" @click="loadMore">
         <Icon v-if="loadingMore" name="loader" :size="14" class="spin" />
         <Icon v-else name="chevron-down" :size="14" />
         <span>{{ loadingMore ? '加载中…' : '加载更多' }}</span>
       </button>
-      <p v-else class="load-more-end">已经到底了 · 共 {{ total }} 篇</p>
+      <p v-else-if="!loadError" class="load-more-end">已经到底了 · 共 {{ total }} 篇</p>
+      <div v-else class="load-more-error" role="status">
+        <span>加载失败，请检查网络后重试。</span>
+        <button type="button" class="load-more-retry" @click="retryLoad">重试</button>
+      </div>
     </div>
   </div>
 </template>
@@ -90,6 +94,7 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const hasMore = ref(false)
 const total = ref(0)
+const loadError = ref(false)
 
 const allTags = computed(() => [...new Set(posts.value.flatMap(p => p.tags || []))].sort())
 const filteredPosts = computed(() =>
@@ -98,9 +103,10 @@ const filteredPosts = computed(() =>
 
 async function fetchPage(offset) {
   const { items, total: t, hasMore: more } = await getPosts({ limit: PAGE_SIZE, offset })
-  posts.value = offset ? [...posts.value, ...items] : items
+  posts.value = offset ? [...posts.value, ...(items || [])] : (items || [])
   total.value = t
   hasMore.value = more
+  loadError.value = false
 }
 
 async function loadMore() {
@@ -109,10 +115,15 @@ async function loadMore() {
   try {
     await fetchPage(posts.value.length)
   } catch {
-    hasMore.value = false
+    loadError.value = true
   } finally {
     loadingMore.value = false
   }
+}
+
+function retryLoad() {
+  loadError.value = false
+  loadMore()
 }
 
 /** Tag filtering happens client-side, so pull the remaining pages in first. */
@@ -122,7 +133,7 @@ async function ensureAllLoaded() {
   try {
     while (hasMore.value) await fetchPage(posts.value.length)
   } catch {
-    hasMore.value = false
+    loadError.value = true
   } finally {
     loadingMore.value = false
   }
@@ -140,6 +151,7 @@ onMounted(async () => {
     posts.value = blogPosts
     total.value = blogPosts.length
     hasMore.value = false
+    loadError.value = true
   } finally {
     loading.value = false
   }

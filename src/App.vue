@@ -5,7 +5,7 @@
       <!-- Avatar + Brand -->
       <router-link to="/" class="sidebar-brand">
         <div class="brand-avatar">
-          <img src="/avatar.svg" alt="" />
+          <img src="/avatar.jpg" alt="" />
         </div>
         <div class="brand-text">
           <span class="brand-name">Chen</span>
@@ -68,13 +68,7 @@
         </router-view>
       </div>
       <div class="mobile-footer">
-        <p>© {{ year }} Chen's Blog · keep writing, keep sharing</p>
-        <p class="mobile-footer-links">
-          <router-link to="/archive">归档</router-link>
-          <router-link to="/page/about">关于</router-link>
-          <router-link to="/page/friends">友链</router-link>
-          <a href="/rss.xml" title="RSS 订阅">RSS</a>
-        </p>
+        <p>© {{ year }} Chen</p>
       </div>
     </main>
   </div>

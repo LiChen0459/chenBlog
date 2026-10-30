@@ -25,10 +25,21 @@ export async function getMedia({ cursor, limit } = {}) {
   const q = params.toString()
   // getPage keeps the envelope: items live under `data`, paging beside it.
   const env = await api.getPage(`/api/media${q ? `?${q}` : ''}`, authOpts())
-  return { items: env.data || [], cursor: env.cursor ?? null, hasMore: !!env.hasMore }
+  return {
+    items: env.data || [],
+    cursor: env.cursor ?? null,
+    hasMore: !!env.hasMore,
+    total: env.total ?? null,
+    totalSize: env.totalSize ?? null,
+  }
 }
 
 /** Permanently remove an image from the store. */
 export function deleteMedia(url) {
   return api.del(`/api/media?url=${encodeURIComponent(url)}`, authOpts())
+}
+
+/** Save tags / group for a single image. */
+export function setMediaMeta(url, { tags, group }) {
+  return api.post(`/api/media/meta`, { url, tags, group }, authOpts())
 }

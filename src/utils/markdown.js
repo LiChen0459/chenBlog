@@ -1,6 +1,25 @@
-import { marked, Renderer } from 'marked'
-import katex from 'katex'
-import hljs from 'highlight.js/lib/common'
+let rendererPromise
+let parsedRendererCurrent
+
+/** Load the heavier article renderer only when a markdown page is opened. */
+export function loadMarkdownRenderer() {
+  if (!rendererPromise) rendererPromise = Promise.all([
+    import('marked'),
+    import('katex'),
+    import('highlight.js/lib/common'),
+  ]).then(([markedModule, katexModule, hljsModule]) => {
+    parsedRendererCurrent = createRenderer(
+      markedModule.marked,
+      markedModule.Renderer,
+      katexModule.default,
+      hljsModule.default,
+    )
+    return parsedRendererCurrent
+  })
+  return rendererPromise
+}
+
+function createRenderer(marked, Renderer, katex, hljs) {
 
 marked.setOptions({ breaks: true, gfm: true })
 
@@ -33,61 +52,21 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
-/** highlight.js; unknown/missing languages fall back to escaped plain text. */
-function highlightCode(code, lang) {
-  try {
-    if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value
-    }
-    if (!lang) return hljs.highlightAuto(code).value
-  } catch { /* unknown grammar — plain text below */ }
-  return escapeHtml(code)
-}
-
 /**
- * Split highlighted HTML into one span per source line for the gutter.
- * highlight.js emits spans that can cross newlines (multi-line comments,
- * template strings), so open tags are tracked and re-opened on every line —
- * otherwise each line after a multi-line span would lose its highlighting.
- * The full opening tag (with class attributes) is kept, not just the name.
+ * Highlight each source line independently so multi-line tokens cannot create
+ * malformed nested spans when line numbers are added.
  */
-function wrapLines(html) {
-  const out = []
-  const open = [] // { name, tag } — name for matching the close, tag to re-open
-  let line = ''
-
-  const flush = () => {
-    const head = open.map((o) => o.tag).join('')
-    const tail = open.slice().reverse().map((o) => `</${o.name}>`).join('')
-    out.push(head + line + tail)
-    line = ''
-  }
-  const emit = (text) => {
-    const parts = text.split('\n')
-    for (let i = 0; i < parts.length; i++) {
-      if (i > 0) flush()
-      line += parts[i]
-    }
-  }
-
-  const tagRe = /<(\/?)([a-zA-Z][\w-]*)[^>]*>/g
-  let last = 0
-  let m
-  while ((m = tagRe.exec(html)) !== null) {
-    emit(html.slice(last, m.index))
-    const [full, slash, name] = m
-    if (slash) {
-      const idx = open.map((o) => o.name).lastIndexOf(name)
-      if (idx >= 0) open.splice(idx, 1)
-    } else if (!full.endsWith('/>')) {
-      open.push({ name, tag: full })
-    }
-    line += full
-    last = tagRe.lastIndex
-  }
-  emit(html.slice(last))
-  flush()
-  return out
+function highlightLines(code, lang) {
+  return code.split('\n').map((line) => {
+    if (!line) return ''
+    try {
+      if (lang && hljs.getLanguage(lang)) {
+        return hljs.highlight(line, { language: lang, ignoreIllegals: true }).value
+      }
+      if (!lang) return hljs.highlightAuto(line).value
+    } catch { /* unknown grammar — plain text below */ }
+    return escapeHtml(line)
+  })
 }
 
 /**
@@ -99,7 +78,7 @@ const renderer = new Renderer()
 renderer.code = ({ text, lang }) => {
   const key = String(lang || '').trim().toLowerCase().split(/\s+/)[0]
   const label = (key && LANG_NAMES[key]) || (key ? key.toUpperCase() : '代码')
-  const lines = wrapLines(highlightCode(text.replace(/\n$/, ''), key))
+  const lines = highlightLines(text.replace(/\n+$/, ''), key)
   const body = lines.map((l) => `<span class="code-line">${l}</span>`).join('\n')
   return [
     '<div class="code-block">',
@@ -139,10 +118,13 @@ function renderMath(html) {
   return out.replace(/\u0000CODE(\d+)\u0000/g, (_, i) => codeChunks[Number(i)])
 }
 
-/** Markdown source → sanitised-by-construction HTML with KaTeX support. */
+return (md) => renderMath(marked.parse(md))
+}
+
+/** Markdown source → rendered HTML with KaTeX support. */
 export function renderMarkdown(md) {
-  if (!md) return ''
-  return renderMath(marked.parse(md))
+  if (!md || !parsedRendererCurrent) return ''
+  return parsedRendererCurrent(md)
 }
 
 /** Turn a heading's text into a URL-safe id (keeps CJK + alphanumerics). */
